@@ -74,28 +74,33 @@ const SAMPLE_COURSES = [
 //   category → the HUB pillar this belongs to (for grouping in the UI)
 //   color    → a visual accent for this category
 const HUB_REQUIREMENTS = [
-  // Intellectual Toolkit
-  { code: "HUB-FYW",  label: "First-Year Writing Seminar",           category: "Intellectual Toolkit",  color: "#6366f1" },
-  { code: "HUB-QR",   label: "Quantitative Reasoning I",              category: "Intellectual Toolkit",  color: "#6366f1" },
-  { code: "HUB-QR2",  label: "Quantitative Reasoning II",             category: "Intellectual Toolkit",  color: "#6366f1" },
-  { code: "HUB-DLC",  label: "Digital/Multimedia Expression",         category: "Intellectual Toolkit",  color: "#6366f1" },
-  { code: "HUB-TWC",  label: "Teamwork/Collaboration",                category: "Intellectual Toolkit",  color: "#6366f1" },
-  { code: "HUB-RIL",  label: "Research and Information Literacy",     category: "Intellectual Toolkit",  color: "#6366f1" },
-  { code: "HUB-WIN",  label: "Writing-Intensive Course",              category: "Intellectual Toolkit",  color: "#6366f1" },
-  // Philosophical, Aesthetic, and Historical Interpretation
-  { code: "HUB-CRT",  label: "Critical Thinking",                     category: "Philosophical, Aesthetic & Historical", color: "#ec4899" },
-  { code: "HUB-ETH",  label: "Ethical Reasoning",                     category: "Philosophical, Aesthetic & Historical", color: "#ec4899" },
-  { code: "HUB-AES",  label: "Aesthetic Exploration",                  category: "Philosophical, Aesthetic & Historical", color: "#ec4899" },
-  { code: "HUB-HCO",  label: "Historical Consciousness",               category: "Philosophical, Aesthetic & Historical", color: "#ec4899" },
+  // Philosophical, Aesthetic, and Historical Interpretation        
+  { code: "HUB-PLM",  label: "Philosophical Inquiry and Life's Meanings",   category: "Philosophical, Aesthetic & Historical Interpretation", color: "#3b82f6" },
+  { code: "HUB-AEX",  label: "Aesthetic Exploration",                       category: "Philosophical, Aesthetic & Historical Interpretation", color: "#3b82f6" },
+  { code: "HUB-HCO",  label: "Historical Consciousness",                    category: "Philosophical, Aesthetic & Historical Interpretation", color: "#3b82f6" },
   // Scientific & Social Inquiry
-  { code: "HUB-SCI",  label: "Scientific Inquiry I",                   category: "Scientific & Social Inquiry", color: "#22c55e" },
-  { code: "HUB-SCI2", label: "Scientific Inquiry II",                  category: "Scientific & Social Inquiry", color: "#22c55e" },
-  { code: "HUB-SO1",  label: "Social Inquiry I",                       category: "Scientific & Social Inquiry", color: "#22c55e" },
-  { code: "HUB-SO2",  label: "Social Inquiry II",                      category: "Scientific & Social Inquiry", color: "#22c55e" },
+  { code: "HUB-SI1",  label: "Scientific Inquiry I",                        category: "Scientific & Social Inquiry", color: "#22c55e" },
+  { code: "HUB-SI2", label: "Scientific Inquiry II",                        category: "Scientific & Social Inquiry", color: "#22c55e" },
+  { code: "HUB-SO1",  label: "Social Inquiry I",                            category: "Scientific & Social Inquiry", color: "#22c55e" },
+  { code: "HUB-SO2",  label: "Social Inquiry II",                           category: "Scientific & Social Inquiry", color: "#22c55e" },
+  // Quantitative Reasoning
+  { code: "HUB-QR1",   label: "Quantitative Reasoning I",                   category: "Quantitative Reasoning", color: "#f59e0b"},
+  { code: "HUB-QR2",   label: "Quantitative Reasoning II",                  category: "Quantitative Reasoning", color: "#f59e0b"},
   // Diversity, Civic Engagement & Global Citizenship
-  { code: "HUB-IIC",  label: "Individual in Community",                category: "Diversity, Civic & Global", color: "#f59e0b" },
-  { code: "HUB-GCI",  label: "Global Citizenship & Intercultural Literacy", category: "Diversity, Civic & Global", color: "#f59e0b" },
-  { code: "HUB-UCE",  label: "Civic Engagement & Service",             category: "Diversity, Civic & Global", color: "#f59e0b" },
+  { code: "HUB-IIC",  label: "The Individual in Community",                 category: "Diversity, Civic Engagement & Global Citizenship", color: "#ec4899" },
+  { code: "HUB-GCI",  label: "Global Citizenship & Intercultural Literacy", category: "Diversity, Civic Engagement & Global Citizenship", color: "#ec4899" },
+  { code: "HUB-ETR",  label: "Ethical Reasoning",                           category: "Diversity, Civic Engagement & Global Citizenship", color: "#ec4899" },
+  // Communication
+  { code: "HUB-FYW",  label: "First-Year Writing Seminar",                  category: "Communication", color: "#8b5cf6" },
+  { code: "HUB-WRI",  label: "Writing, Research, and Inquiry",              category: "Communication", color: "#8b5cf6" },
+  { code: "HUB-WIN",  label: "Writing-Intensive Course",                    category: "Communication", color: "#8b5cf6" },
+  { code: "HUB-OSC",  label: "Oral and/or Signed Communication",            category: "Communication", color: "#8b5cf6" },
+  { code: "HUB-DME",  label: "Digital/Multimedia Expression",               category: "Communication", color: "#8b5cf6" },
+  // Intellectual Toolkit
+  { code: "HUB-CTR",  label: "Critical Thinking",                           category: "Intellectual Toolkit",  color: "#6366f1" },
+  { code: "HUB-RIL",  label: "Research and Information Literacy",           category: "Intellectual Toolkit",  color: "#6366f1" },
+  { code: "HUB-TWC",  label: "Teamwork/Collaboration",                      category: "Intellectual Toolkit",  color: "#6366f1" },
+  { code: "HUB-CRI",  label: "Creativity/Innovation",                       category: "Intellectual Toolkit",  color: "#6366f1" },
 ];
 
 // Build a quick lookup map: code → full HUB object
