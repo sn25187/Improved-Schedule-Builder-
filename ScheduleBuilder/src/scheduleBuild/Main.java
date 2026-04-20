@@ -125,8 +125,8 @@ public class Main {
                     System.out.println("\n  [Section " + s.getClassSection() + " - Nbr: " + s.getClassNbr() + "]");
                     System.out.println("  Mode: " + s.getInstructionModeDescr());
                     System.out.println("  Capacity: " + s.getClassCapacity());
-                    System.out.println("  Course ATTR" + s.getCrseAttr());
-                    System.out.println("  Course ATTR_VAL" + s.getCrseAttrValue());
+                    System.out.println("  Course ATTR: " + s.getCrseAttr());
+                    System.out.println("  Course ATTR_VAL: " + s.getCrseAttrValue());
 
                     if (s.getMeetings() != null && !s.getMeetings().isEmpty()) {
                         System.out.println("  Meetings:");
