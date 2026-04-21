@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 
 // ─── Sample Data ──────────────────────────────────────────────────────────────
 // Replace with: import courses from "./courses.json";
@@ -75,32 +75,32 @@ const SAMPLE_COURSES = [
 //   color    → a visual accent for this category
 const HUB_REQUIREMENTS = [
   // Philosophical, Aesthetic, and Historical Interpretation        
-  { code: "HUB-PLM",  label: "Philosophical Inquiry and Life's Meanings",   category: "Philosophical, Aesthetic & Historical Interpretation", color: "#3b82f6" },
-  { code: "HUB-AEX",  label: "Aesthetic Exploration",                       category: "Philosophical, Aesthetic & Historical Interpretation", color: "#3b82f6" },
-  { code: "HUB-HCO",  label: "Historical Consciousness",                    category: "Philosophical, Aesthetic & Historical Interpretation", color: "#3b82f6" },
+  { code: "HUB-PLM", label: "Philosophical Inquiry and Life's Meanings", category: "Philosophical, Aesthetic & Historical Interpretation", color: "#3b82f6" },
+  { code: "HUB-AEX", label: "Aesthetic Exploration", category: "Philosophical, Aesthetic & Historical Interpretation", color: "#3b82f6" },
+  { code: "HUB-HCO", label: "Historical Consciousness", category: "Philosophical, Aesthetic & Historical Interpretation", color: "#3b82f6" },
   // Scientific & Social Inquiry
-  { code: "HUB-SI1",  label: "Scientific Inquiry I",                        category: "Scientific & Social Inquiry", color: "#22c55e" },
-  { code: "HUB-SI2", label: "Scientific Inquiry II",                        category: "Scientific & Social Inquiry", color: "#22c55e" },
-  { code: "HUB-SO1",  label: "Social Inquiry I",                            category: "Scientific & Social Inquiry", color: "#22c55e" },
-  { code: "HUB-SO2",  label: "Social Inquiry II",                           category: "Scientific & Social Inquiry", color: "#22c55e" },
+  { code: "HUB-SI1", label: "Scientific Inquiry I", category: "Scientific & Social Inquiry", color: "#22c55e" },
+  { code: "HUB-SI2", label: "Scientific Inquiry II", category: "Scientific & Social Inquiry", color: "#22c55e" },
+  { code: "HUB-SO1", label: "Social Inquiry I", category: "Scientific & Social Inquiry", color: "#22c55e" },
+  { code: "HUB-SO2", label: "Social Inquiry II", category: "Scientific & Social Inquiry", color: "#22c55e" },
   // Quantitative Reasoning
-  { code: "HUB-QR1",   label: "Quantitative Reasoning I",                   category: "Quantitative Reasoning", color: "#f59e0b"},
-  { code: "HUB-QR2",   label: "Quantitative Reasoning II",                  category: "Quantitative Reasoning", color: "#f59e0b"},
+  { code: "HUB-QR1", label: "Quantitative Reasoning I", category: "Quantitative Reasoning", color: "#f59e0b" },
+  { code: "HUB-QR2", label: "Quantitative Reasoning II", category: "Quantitative Reasoning", color: "#f59e0b" },
   // Diversity, Civic Engagement & Global Citizenship
-  { code: "HUB-IIC",  label: "The Individual in Community",                 category: "Diversity, Civic Engagement & Global Citizenship", color: "#ec4899" },
-  { code: "HUB-GCI",  label: "Global Citizenship & Intercultural Literacy", category: "Diversity, Civic Engagement & Global Citizenship", color: "#ec4899" },
-  { code: "HUB-ETR",  label: "Ethical Reasoning",                           category: "Diversity, Civic Engagement & Global Citizenship", color: "#ec4899" },
+  { code: "HUB-IIC", label: "The Individual in Community", category: "Diversity, Civic Engagement & Global Citizenship", color: "#ec4899" },
+  { code: "HUB-GCI", label: "Global Citizenship & Intercultural Literacy", category: "Diversity, Civic Engagement & Global Citizenship", color: "#ec4899" },
+  { code: "HUB-ETR", label: "Ethical Reasoning", category: "Diversity, Civic Engagement & Global Citizenship", color: "#ec4899" },
   // Communication
-  { code: "HUB-FYW",  label: "First-Year Writing Seminar",                  category: "Communication", color: "#8b5cf6" },
-  { code: "HUB-WRI",  label: "Writing, Research, and Inquiry",              category: "Communication", color: "#8b5cf6" },
-  { code: "HUB-WIN",  label: "Writing-Intensive Course",                    category: "Communication", color: "#8b5cf6" },
-  { code: "HUB-OSC",  label: "Oral and/or Signed Communication",            category: "Communication", color: "#8b5cf6" },
-  { code: "HUB-DME",  label: "Digital/Multimedia Expression",               category: "Communication", color: "#8b5cf6" },
+  { code: "HUB-FYW", label: "First-Year Writing Seminar", category: "Communication", color: "#8b5cf6" },
+  { code: "HUB-WRI", label: "Writing, Research, and Inquiry", category: "Communication", color: "#8b5cf6" },
+  { code: "HUB-WIN", label: "Writing-Intensive Course", category: "Communication", color: "#8b5cf6" },
+  { code: "HUB-OSC", label: "Oral and/or Signed Communication", category: "Communication", color: "#8b5cf6" },
+  { code: "HUB-DME", label: "Digital/Multimedia Expression", category: "Communication", color: "#8b5cf6" },
   // Intellectual Toolkit
-  { code: "HUB-CTR",  label: "Critical Thinking",                           category: "Intellectual Toolkit",  color: "#6366f1" },
-  { code: "HUB-RIL",  label: "Research and Information Literacy",           category: "Intellectual Toolkit",  color: "#6366f1" },
-  { code: "HUB-TWC",  label: "Teamwork/Collaboration",                      category: "Intellectual Toolkit",  color: "#6366f1" },
-  { code: "HUB-CRI",  label: "Creativity/Innovation",                       category: "Intellectual Toolkit",  color: "#6366f1" },
+  { code: "HUB-CTR", label: "Critical Thinking", category: "Intellectual Toolkit", color: "#6366f1" },
+  { code: "HUB-RIL", label: "Research and Information Literacy", category: "Intellectual Toolkit", color: "#6366f1" },
+  { code: "HUB-TWC", label: "Teamwork/Collaboration", category: "Intellectual Toolkit", color: "#6366f1" },
+  { code: "HUB-CRI", label: "Creativity/Innovation", category: "Intellectual Toolkit", color: "#6366f1" },
 ];
 
 // Build a quick lookup map: code → full HUB object
@@ -142,9 +142,9 @@ function hasConflict(existing, newSection) {
     const sharedDay = section.days.some((d) => newSection.days.includes(d));
     if (!sharedDay) continue;
     const aStart = timeToMinutes(section.startTime);
-    const aEnd   = timeToMinutes(section.endTime);
+    const aEnd = timeToMinutes(section.endTime);
     const bStart = timeToMinutes(newSection.startTime);
-    const bEnd   = timeToMinutes(newSection.endTime);
+    const bEnd = timeToMinutes(newSection.endTime);
     if (aStart < bEnd && bStart < aEnd) return true;
   }
   return false;
@@ -247,9 +247,10 @@ function CourseCard({ course, selectedSections, colorMap, onToggleSection }) {
 
 // ─── WeekGrid Component ───────────────────────────────────────────────────────
 function WeekGrid({ schedule, colorMap }) {
-  const gridStart    = 7 * 60;
-  const gridEnd      = 21 * 60;
+  const gridStart = 7 * 60;
+  const gridEnd = 21 * 60;
   const totalMinutes = gridEnd - gridStart;
+  const [selectedBlock, setSelectedBlock] = useState(null); // { courseId, sectionId, day }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", userSelect: "none" }}>
@@ -260,7 +261,7 @@ function WeekGrid({ schedule, colorMap }) {
         ))}
       </div>
       <div style={{ flex: 1, overflowY: "auto", position: "relative" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "44px repeat(5, 1fr)", position: "relative", minHeight: 560 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "44px repeat(5, 1fr)", position: "relative", minHeight: 840, paddingTop: 8 }}>
           <div style={{ position: "relative" }}>
             {HOURS.map((h) => (
               <div key={h} style={{
@@ -281,25 +282,100 @@ function WeekGrid({ schedule, colorMap }) {
               ))}
               {schedule
                 .filter(({ section }) => section.days.includes(day))
-                .map(({ courseId, courseCode, section }) => {
+                .map((entry) => {
+                  const { courseId, courseCode, courseName, credits, instructor, college, section } = entry;
                   const color = colorMap[courseId] ?? SECTION_COLORS[0];
-                  const top    = ((timeToMinutes(section.startTime) - gridStart) / totalMinutes) * 100;
+                  const top = ((timeToMinutes(section.startTime) - gridStart) / totalMinutes) * 100;
                   const height = ((timeToMinutes(section.endTime) - timeToMinutes(section.startTime)) / totalMinutes) * 100;
+                  const isSelected = selectedBlock?.courseId === courseId && selectedBlock?.sectionId === section.sectionId && selectedBlock?.day === day;
+                  const isHighlighted = selectedBlock?.courseId === courseId && selectedBlock?.sectionId === section.sectionId;
                   return (
-                    <div key={`${courseId}-${section.sectionId}`} style={{
-                      position: "absolute", top: `${top}%`, left: 2, right: 2, height: `${height}%`,
-                      background: color.bg, border: `1.5px solid ${color.border}`, borderRadius: 6,
-                      padding: "3px 5px", overflow: "hidden", boxSizing: "border-box",
-                    }}>
+                    <div key={`${courseId}-${section.sectionId}`}
+                      onClick={(e) => { e.stopPropagation(); setSelectedBlock(isSelected ? null : { courseId, sectionId: section.sectionId, day, type: section.type }); }}
+                      style={{
+                        position: "absolute", top: `${top}%`, left: 2, right: 2, height: `${height}%`,
+                        background: color.bg, border: `1.5px solid ${color.border}`, borderRadius: 6,
+                        padding: "3px 5px", overflow: "visible", boxSizing: "border-box",
+                        cursor: "pointer", transition: "box-shadow 0.15s, transform 0.15s",
+                        boxShadow: isHighlighted ? `0 2px 12px ${color.border}66` : "none",
+                        transform: isHighlighted ? "scale(1.02)" : "none",
+                        zIndex: isSelected ? 20 : (isHighlighted ? 10 : 1),
+                      }}
+                    >
                       <div style={{ fontSize: 10, fontWeight: 700, color: color.text, lineHeight: 1.3 }}>{courseCode}</div>
                       <div style={{ fontSize: 9, color: color.text, opacity: 0.75 }}>{section.type}</div>
                       <div style={{ fontSize: 9, color: color.text, opacity: 0.65 }}>{section.startTime}–{section.endTime}</div>
+
+                      {/* Detail popup */}
+                      {isSelected && (
+                        <div onClick={(e) => e.stopPropagation()} style={{
+                          position: "absolute", top: "100%", left: 0, marginTop: 4,
+                          width: 220, background: "#fff", borderRadius: 10,
+                          border: "1px solid #e5e7eb", boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                          padding: "12px 14px", zIndex: 30,
+                        }}>
+                          {/* Close button */}
+                          <button
+                            onClick={() => setSelectedBlock(null)}
+                            style={{
+                              position: "absolute", top: 6, right: 8,
+                              background: "none", border: "none", cursor: "pointer",
+                              fontSize: 14, color: "#9ca3af", lineHeight: 1,
+                            }}
+                          >×</button>
+
+                          {/* Course title */}
+                          <div style={{ fontSize: 13, fontWeight: 700, color: "#111827", marginBottom: 2 }}>{courseCode}</div>
+                          <div style={{ fontSize: 11, color: "#374151", marginBottom: 8, lineHeight: 1.4 }}>{courseName}</div>
+
+                          {/* Detail rows */}
+                          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
+                              <span style={{ color: "#9ca3af" }}>Section</span>
+                              <span style={{ color: "#374151", fontWeight: 500 }}>{section.type} {section.sectionId}</span>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
+                              <span style={{ color: "#9ca3af" }}>Time</span>
+                              <span style={{ color: "#374151", fontWeight: 500 }}>{section.startTime} – {section.endTime}</span>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
+                              <span style={{ color: "#9ca3af" }}>Days</span>
+                              <span style={{ color: "#374151", fontWeight: 500 }}>{section.days.join(", ")}</span>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
+                              <span style={{ color: "#9ca3af" }}>Room</span>
+                              <span style={{ color: "#374151", fontWeight: 500 }}>{section.room}</span>
+                            </div>
+                            <div style={{ height: 1, background: "#f3f4f6", margin: "2px 0" }} />
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
+                              <span style={{ color: "#9ca3af" }}>Instructor</span>
+                              <span style={{ color: "#374151", fontWeight: 500 }}>{instructor}</span>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
+                              <span style={{ color: "#9ca3af" }}>Credits</span>
+                              <span style={{ color: "#374151", fontWeight: 500 }}>{credits}</span>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
+                              <span style={{ color: "#9ca3af" }}>College</span>
+                              <span style={{ color: "#374151", fontWeight: 500 }}>{college}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
             </div>
           ))}
         </div>
+
+        {/* Click on empty space to dismiss popup */}
+        {selectedBlock && (
+          <div
+            onClick={() => setSelectedBlock(null)}
+            style={{ position: "absolute", inset: 0, zIndex: 0 }}
+          />
+        )}
       </div>
     </div>
   );
@@ -310,8 +386,19 @@ function WeekGrid({ schedule, colorMap }) {
 // main app can swap between this and the HUB finder page.
 function SchedulePage({ courses }) {
   const [selectedSections, setSelectedSections] = useState({});
-  const [conflicts, setConflicts]               = useState([]);
-  const [search, setSearch]                     = useState("");
+  const [conflicts, setConflicts] = useState([]);
+  const [conflictFading, setConflictFading] = useState(false);
+  const [search, setSearch] = useState("");
+  const [showCreditInfo, setShowCreditInfo] = useState(false);
+
+  // Auto-dismiss conflict warnings: fade starts at 4s, removed at 5s
+  useEffect(() => {
+    if (conflicts.length === 0) return;
+    setConflictFading(false);
+    const fadeTimer = setTimeout(() => setConflictFading(true), 4000);
+    const clearTimer = setTimeout(() => { setConflicts([]); setConflictFading(false); }, 5000);
+    return () => { clearTimeout(fadeTimer); clearTimeout(clearTimer); };
+  }, [conflicts]);
 
   const colorMap = useMemo(() => {
     const map = {};
@@ -325,7 +412,7 @@ function SchedulePage({ courses }) {
     courses.forEach((c) => {
       (selectedSections[c.id] ?? []).forEach((sid) => {
         const sec = c.sections.find((s) => s.sectionId === sid);
-        if (sec) out.push({ courseId: c.id, courseCode: c.code, section: sec });
+        if (sec) out.push({ courseId: c.id, courseCode: c.code, courseName: c.name, credits: c.credits, instructor: c.instructor, college: c.college, section: sec });
       });
     });
     return out;
@@ -346,14 +433,14 @@ function SchedulePage({ courses }) {
     const isSelected = prev.includes(section.sectionId);
     if (isSelected) {
       setSelectedSections((s) => ({ ...s, [course.id]: prev.filter((id) => id !== section.sectionId) }));
-      setConflicts((c) => c.filter((msg) => !msg.startsWith(course.code)));
+      setConflicts((c) => { const f = c.filter((msg) => !msg.startsWith(course.code)); return f.length === c.length ? c : f; });
     } else {
       const rest = schedule.filter((e) => !(e.courseId === course.id && prev.includes(e.section.sectionId)));
       if (hasConflict(rest, section)) {
         setConflicts((c) => [...c, `${course.code} ${section.sectionId} conflicts with an existing section.`]);
         return;
       }
-      setConflicts((c) => c.filter((msg) => !msg.startsWith(course.code)));
+      setConflicts((c) => { const f = c.filter((msg) => !msg.startsWith(course.code)); return f.length === c.length ? c : f; });
       setSelectedSections((s) => ({ ...s, [course.id]: [...prev, section.sectionId] }));
     }
   }
@@ -403,17 +490,60 @@ function SchedulePage({ courses }) {
         </div>
         <div style={{ padding: "10px 16px", borderTop: "1px solid #f3f4f6", background: "#fff" }}>
           {conflicts.length > 0 && (
-            <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 6, padding: "6px 8px", marginBottom: 8 }}>
+            <div style={{
+              background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 6,
+              padding: "6px 8px", marginBottom: 8,
+              opacity: conflictFading ? 0 : 1,
+              transition: "opacity 1s ease",
+            }}>
               {conflicts.map((msg, i) => (
                 <div key={i} style={{ fontSize: 11, color: "#dc2626" }}>⚠ {msg}</div>
               ))}
             </div>
           )}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div style={{ fontSize: 12, color: "#374151" }}>
+            <div style={{ position: "relative" }}>
+              <div
+                onClick={() => setShowCreditInfo((v) => !v)}
+                style={{
+                  fontSize: 12,
+                  color: totalCredits > 20 ? "#dc2626" : totalCredits > 18 ? "#ea580c" : "#374151",
+                  cursor: "pointer", userSelect: "none",
+                  transition: "color 0.2s",
+                }}
+              >
                 <b>{totalCredits}</b> credit{totalCredits !== 1 ? "s" : ""} selected
+                {totalCredits > 18 && (
+                  <span style={{
+                    marginLeft: 4, fontSize: 10, fontWeight: 600,
+                    color: totalCredits > 20 ? "#dc2626" : "#ea580c",
+                    background: totalCredits > 20 ? "#fef2f2" : "#fff7ed",
+                    border: `1px solid ${totalCredits > 20 ? "#fecaca" : "#fed7aa"}`,
+                    borderRadius: 4, padding: "1px 5px",
+                  }}>
+                    {totalCredits > 20 ? "⊘ Over max" : "⚠ Overload"}
+                  </span>
+                )}
               </div>
+              {showCreditInfo && (
+                <div style={{
+                  position: "absolute", bottom: "calc(100% + 6px)", left: 0,
+                  width: 220, background: "#fff", borderRadius: 8,
+                  border: "1px solid #e5e7eb", boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+                  padding: "10px 12px", zIndex: 30, fontSize: 11, color: "#374151", lineHeight: 1.5,
+                }}>
+                  <div style={{ fontWeight: 700, marginBottom: 4, color: "#111827", fontSize: 12 }}>Credit Limits</div>
+                  Students can take a maximum of <b>20 credits</b> per term. Exceeding <b>18 credits</b> is classified as overloading. Check with your advisor for more information.
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowCreditInfo(false); }}
+                    style={{
+                      position: "absolute", top: 4, right: 6,
+                      background: "none", border: "none", cursor: "pointer",
+                      fontSize: 14, color: "#9ca3af", lineHeight: 1,
+                    }}
+                  >×</button>
+                </div>
+              )}
               <div style={{ fontSize: 11, color: "#9ca3af" }}>
                 {schedule.length} section{schedule.length !== 1 ? "s" : ""} on schedule
               </div>
@@ -517,7 +647,8 @@ function HubFinderPage({ courses }) {
             }}>Select all</button>
             <button onClick={clearAll} style={{
               flex: 1, fontSize: 11, padding: "4px 0", borderRadius: 5,
-              border: "1px solid #e5e7eb", background: "#f9fafb", cursor: "pointer", color: "#374151",
+              border: "1px solid #e5e7eb", background: "#f9fafb",
+              cursor: "pointer", color: "#374151",
             }}>Clear all</button>
           </div>
         </div>
@@ -540,8 +671,8 @@ function HubFinderPage({ courses }) {
 
                 {/* Individual HUB checkboxes */}
                 {hubs.map((hub) => {
-                  const checked  = neededHubs.has(hub.code);
-                  const covered  = coveredHubs.has(hub.code);
+                  const checked = neededHubs.has(hub.code);
+                  const covered = coveredHubs.has(hub.code);
                   return (
                     <label key={hub.code} style={{
                       display: "flex", alignItems: "flex-start", gap: 8,
@@ -686,14 +817,14 @@ function HubFinderPage({ courses }) {
                 {/* HUB tags — green if matched/needed, grey if course has it but user didn't select it */}
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                   {(course.hubCodes ?? []).map((code) => {
-                    const isMatch  = matched.includes(code);
-                    const hubInfo  = HUB_MAP[code];
+                    const isMatch = matched.includes(code);
+                    const hubInfo = HUB_MAP[code];
                     return (
                       <span key={code} style={{
                         fontSize: 10, padding: "2px 7px", borderRadius: 99, fontWeight: 600,
                         background: isMatch ? "#dcfce7" : "#f3f4f6",
-                        color:      isMatch ? "#15803d" : "#9ca3af",
-                        border:     `1px solid ${isMatch ? "#86efac" : "#e5e7eb"}`,
+                        color: isMatch ? "#15803d" : "#9ca3af",
+                        border: `1px solid ${isMatch ? "#86efac" : "#e5e7eb"}`,
                       }}>
                         {/* Show the short code; hovering the full name would need a tooltip */}
                         {hubInfo?.label ?? code}
@@ -734,7 +865,7 @@ export default function BUScheduleBuilder() {
           React re-mounts the component when you switch, which resets its internal state.
           That's intentional — your HUB selections and schedule selections are independent. */}
       {page === "schedule" && <SchedulePage courses={courses} />}
-      {page === "hub"      && <HubFinderPage courses={courses} />}
+      {page === "hub" && <HubFinderPage courses={courses} />}
     </div>
   );
 }
