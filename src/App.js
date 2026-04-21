@@ -390,6 +390,7 @@ function SchedulePage({ courses }) {
   const [conflictFading, setConflictFading] = useState(false);
   const [search, setSearch] = useState("");
   const [showCreditInfo, setShowCreditInfo] = useState(false);
+  const [creditTooltip, setCreditTooltip] = useState(null); // "overload" | "overmax" | null
 
   // Auto-dismiss conflict warnings: fade starts at 4s, removed at 5s
   useEffect(() => {
@@ -514,14 +515,41 @@ function SchedulePage({ courses }) {
               >
                 <b>{totalCredits}</b> credit{totalCredits !== 1 ? "s" : ""} selected
                 {totalCredits > 18 && (
-                  <span style={{
-                    marginLeft: 4, fontSize: 10, fontWeight: 600,
-                    color: totalCredits > 20 ? "#dc2626" : "#ea580c",
-                    background: totalCredits > 20 ? "#fef2f2" : "#fff7ed",
-                    border: `1px solid ${totalCredits > 20 ? "#fecaca" : "#fed7aa"}`,
-                    borderRadius: 4, padding: "1px 5px",
-                  }}>
+                  <span
+                    onMouseEnter={() => setCreditTooltip(totalCredits > 20 ? "overmax" : "overload")}
+                    onMouseLeave={() => setCreditTooltip(null)}
+                    style={{
+                      marginLeft: 4, fontSize: 10, fontWeight: 600,
+                      color: totalCredits > 20 ? "#dc2626" : "#ea580c",
+                      background: totalCredits > 20 ? "#fef2f2" : "#fff7ed",
+                      border: `1px solid ${totalCredits > 20 ? "#fecaca" : "#fed7aa"}`,
+                      borderRadius: 4, padding: "1px 5px",
+                      position: "relative", cursor: "default",
+                    }}
+                  >
                     {totalCredits > 20 ? "⊘ Over max" : "⚠ Overload"}
+                    {creditTooltip && (
+                      <span style={{
+                        position: "absolute", bottom: "calc(100% + 6px)", left: "50%",
+                        transform: "translateX(-50%)", whiteSpace: "nowrap",
+                        background: "#1f2937", color: "#fff", fontSize: 11, fontWeight: 500,
+                        padding: "5px 10px", borderRadius: 6,
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.2)", pointerEvents: "none",
+                        zIndex: 50,
+                      }}>
+                        {creditTooltip === "overmax"
+                          ? "Max credit per term exceeded."
+                          : "Additional provisions may apply."}
+                        {/* Tooltip arrow */}
+                        <span style={{
+                          position: "absolute", top: "100%", left: "50%",
+                          transform: "translateX(-50%)",
+                          borderLeft: "5px solid transparent",
+                          borderRight: "5px solid transparent",
+                          borderTop: "5px solid #1f2937",
+                        }} />
+                      </span>
+                    )}
                   </span>
                 )}
               </div>
