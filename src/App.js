@@ -115,7 +115,7 @@ const HUB_BY_CATEGORY = HUB_REQUIREMENTS.reduce((acc, hub) => {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
-const HOURS = Array.from({ length: 14 }, (_, i) => i + 7);
+const HOURS = Array.from({ length: 16 }, (_, i) => i + 7);
 const SECTION_COLORS = [
   { bg: "#dbeafe", border: "#3b82f6", text: "#1e40af" },
   { bg: "#dcfce7", border: "#22c55e", text: "#15803d" },
@@ -166,7 +166,9 @@ function NavBar({ page, onPageChange }) {
         width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center",
         fontSize: 11, fontWeight: 700, flexShrink: 0,
       }}>BU</div>
-      <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>Schedule Builder</div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>Schedule Builder
+        <div style={{ fontSize: 11, fontWeight: 500, color: "#575656" }}>Fall 2026</div>
+      </div>
 
       {/* Divider */}
       <div style={{ width: 1, height: 20, background: "#e5e7eb" }} />
