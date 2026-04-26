@@ -192,28 +192,58 @@ function NavBar({ page, onPageChange }) {
 }
 
 // ─── CourseCard Component ─────────────────────────────────────────────────────
-function CourseCard({ course, selectedSections, colorMap, onToggleSection }) {
+function CourseCard({ course, selectedSections, colorMap, onToggleSection, previewCourseId, onPreviewCourse }) {
   const color = colorMap[course.id];
-  const isAnySelected = selectedSections[course.id]?.length > 0;
+  const selected = selectedSections[course.id] ?? [];
+  const isAnySelected = selected.length > 0;
+
+  // Check for incomplete selection: which section types are covered
+  const allTypes = new Set(course.sections.map((s) => s.type));
+  const selectedTypes = new Set(
+    course.sections.filter((s) => selected.includes(s.sectionId)).map((s) => s.type)
+  );
+  const allTypesCovered = isAnySelected && allTypes.size === selectedTypes.size;
+  const isPreviewing = previewCourseId === course.id && !allTypesCovered;
 
   return (
     <div style={{
-      border: `1.5px solid ${isAnySelected ? color?.border ?? "#d1d5db" : "#e5e7eb"}`,
+      border: `1.5px solid ${isPreviewing ? color?.border ?? "#6366f1" : isAnySelected ? color?.border ?? "#d1d5db" : "#e5e7eb"}`,
       borderRadius: 10, marginBottom: 10, overflow: "hidden",
       background: isAnySelected ? color?.bg ?? "#fff" : "#fff",
-      transition: "border-color 0.15s",
+      transition: "border-color 0.15s, box-shadow 0.15s",
+      boxShadow: isPreviewing ? `0 0 0 2px ${(color?.border ?? "#6366f1")}33` : "none",
     }}>
-      <div style={{ padding: "10px 12px" }}>
+      {/* Clickable course banner for preview */}
+      <div
+        onClick={() => onPreviewCourse(isPreviewing ? null : course.id)}
+        style={{
+          padding: "10px 12px", cursor: "pointer",
+          transition: "background 0.12s",
+          background: isPreviewing ? `${color?.border ?? "#6366f1"}11` : "transparent",
+        }}
+      >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
           <span style={{ fontWeight: 600, fontSize: 13, color: "#111827" }}>{course.code}</span>
-          <span style={{ fontSize: 11, color: "#6b7280", background: "#f3f4f6", borderRadius: 4, padding: "2px 6px" }}>{course.credits} cr</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {isPreviewing && (
+              <span style={{
+                fontSize: 9, fontWeight: 600, color: color?.border ?? "#6366f1",
+                background: `${color?.border ?? "#6366f1"}18`,
+                padding: "1px 6px", borderRadius: 4, textTransform: "uppercase", letterSpacing: "0.04em",
+              }}>Preview</span>
+            )}
+            <span style={{ fontSize: 11, color: "#6b7280", background: "#f3f4f6", borderRadius: 4, padding: "2px 6px" }}>{course.credits} cr</span>
+          </div>
         </div>
         <div style={{ fontSize: 12, color: "#374151", marginTop: 2, lineHeight: 1.4 }}>{course.name}</div>
         <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>{course.college}</div>
       </div>
+
       <div style={{ borderTop: "1px solid #f3f4f6" }}>
         {course.sections.map((sec) => {
-          const isSelected = selectedSections[course.id]?.includes(sec.sectionId);
+          const isSelected = selected.includes(sec.sectionId);
+          // Show warning if this section's type is missing AND at least one other type is selected
+          const isMissing = isAnySelected && !selectedTypes.has(sec.type) && !isSelected;
           return (
             <button
               key={sec.sectionId}
@@ -221,7 +251,7 @@ function CourseCard({ course, selectedSections, colorMap, onToggleSection }) {
               style={{
                 display: "flex", width: "100%", alignItems: "center",
                 justifyContent: "space-between", padding: "7px 12px",
-                background: isSelected ? color?.bg ?? "#eff6ff" : "transparent",
+                background: isSelected ? color?.bg ?? "#eff6ff" : isMissing ? "#fff7ed" : "transparent",
                 border: "none", borderBottom: "1px solid #f9fafb",
                 cursor: "pointer", textAlign: "left", gap: 8, transition: "background 0.12s",
               }}
@@ -234,11 +264,20 @@ function CourseCard({ course, selectedSections, colorMap, onToggleSection }) {
                   {sec.days.join("/")} · {sec.startTime}–{sec.endTime} · {sec.room}
                 </div>
               </div>
-              <div style={{
-                width: 16, height: 16, borderRadius: "50%",
-                border: `2px solid ${isSelected ? color?.border : "#d1d5db"}`,
-                background: isSelected ? color?.border : "transparent", flexShrink: 0,
-              }} />
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                {isMissing && (
+                  <span style={{
+                    fontSize: 9, fontWeight: 600, color: "#c2410c",
+                    background: "#fff7ed", border: "1px solid #fed7aa",
+                    padding: "1px 5px", borderRadius: 4, whiteSpace: "nowrap",
+                  }}>⚠ Missing</span>
+                )}
+                <div style={{
+                  width: 16, height: 16, borderRadius: "50%",
+                  border: `2px solid ${isSelected ? color?.border : "#d1d5db"}`,
+                  background: isSelected ? color?.border : "transparent", flexShrink: 0,
+                }} />
+              </div>
             </button>
           );
         })}
@@ -248,7 +287,7 @@ function CourseCard({ course, selectedSections, colorMap, onToggleSection }) {
 }
 
 // ─── WeekGrid Component ───────────────────────────────────────────────────────
-function WeekGrid({ schedule, colorMap }) {
+function WeekGrid({ schedule, colorMap, previewSections, onAddPreviewSection, previewCourseId, onRemovePreviewSection }) {
   const gridStart = 7 * 60;
   const gridEnd = 21 * 60;
   const totalMinutes = gridEnd - gridStart;
@@ -291,12 +330,22 @@ function WeekGrid({ schedule, colorMap }) {
                   const height = ((timeToMinutes(section.endTime) - timeToMinutes(section.startTime)) / totalMinutes) * 100;
                   const isSelected = selectedBlock?.courseId === courseId && selectedBlock?.sectionId === section.sectionId && selectedBlock?.day === day;
                   const isHighlighted = selectedBlock?.courseId === courseId && selectedBlock?.sectionId === section.sectionId;
+                  const isPreviewTarget = previewCourseId === courseId;
                   return (
                     <div key={`${courseId}-${section.sectionId}`}
-                      onClick={(e) => { e.stopPropagation(); setSelectedBlock(isSelected ? null : { courseId, sectionId: section.sectionId, day, type: section.type }); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (isPreviewTarget) {
+                          onRemovePreviewSection?.({ courseId, section });
+                        } else {
+                          setSelectedBlock(isSelected ? null : { courseId, sectionId: section.sectionId, day, type: section.type });
+                        }
+                      }}
                       style={{
                         position: "absolute", top: `${top}%`, left: 2, right: 2, height: `${height}%`,
-                        background: color.bg, border: `1.5px solid ${color.border}`, borderRadius: 6,
+                        background: isPreviewTarget ? `${color.bg}cc` : color.bg,
+                        border: isPreviewTarget ? `2px dashed ${color.border}` : `1.5px solid ${color.border}`,
+                        borderRadius: 6,
                         padding: "3px 5px", overflow: "visible", boxSizing: "border-box",
                         cursor: "pointer", transition: "box-shadow 0.15s, transform 0.15s",
                         boxShadow: isHighlighted ? `0 2px 12px ${color.border}66` : "none",
@@ -304,7 +353,12 @@ function WeekGrid({ schedule, colorMap }) {
                         zIndex: isSelected ? 20 : (isHighlighted ? 10 : 1),
                       }}
                     >
-                      <div style={{ fontSize: 10, fontWeight: 700, color: color.text, lineHeight: 1.3 }}>{courseCode}</div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: color.text, lineHeight: 1.3 }}>{courseCode}</div>
+                        {isPreviewTarget && (
+                          <span style={{ fontSize: 8, color: color.border, opacity: 0.7, fontStyle: "italic" }}>× Remove</span>
+                        )}
+                      </div>
                       <div style={{ fontSize: 9, color: color.text, opacity: 0.75 }}>{section.type}</div>
                       <div style={{ fontSize: 9, color: color.text, opacity: 0.65 }}>{section.startTime}–{section.endTime}</div>
 
@@ -367,6 +421,34 @@ function WeekGrid({ schedule, colorMap }) {
                     </div>
                   );
                 })}
+              {/* Preview / ghost blocks — clickable to add to schedule */}
+              {(previewSections ?? [])
+                .filter((ps) => ps.section.days.includes(day))
+                .map((ps) => {
+                  const color = colorMap[ps.courseId] ?? SECTION_COLORS[0];
+                  const top = ((timeToMinutes(ps.section.startTime) - gridStart) / totalMinutes) * 100;
+                  const height = ((timeToMinutes(ps.section.endTime) - timeToMinutes(ps.section.startTime)) / totalMinutes) * 100;
+                  return (
+                    <div key={`preview-${ps.courseId}-${ps.section.sectionId}`}
+                      onClick={(e) => { e.stopPropagation(); onAddPreviewSection?.(ps); }}
+                      style={{
+                        position: "absolute", top: `${top}%`, left: 2, right: 2, height: `${height}%`,
+                        background: `${color.border}12`, border: `2px dashed ${color.border}`,
+                        borderRadius: 6, padding: "3px 5px", boxSizing: "border-box",
+                        cursor: "pointer", zIndex: 2,
+                        animation: "previewPulse 2s ease-in-out infinite",
+                        transition: "background 0.15s, border-color 0.15s",
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = `${color.border}28`; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = `${color.border}12`; }}
+                    >
+                      <div style={{ fontSize: 10, fontWeight: 700, color: color.border, opacity: 0.7, lineHeight: 1.3 }}>{ps.courseCode}</div>
+                      <div style={{ fontSize: 9, color: color.border, opacity: 0.55 }}>{ps.section.type} {ps.section.sectionId}</div>
+                      <div style={{ fontSize: 9, color: color.border, opacity: 0.45 }}>{ps.section.startTime}–{ps.section.endTime}</div>
+                      <div style={{ fontSize: 8, color: color.border, opacity: 0.5, marginTop: 1, fontStyle: "italic" }}>Click to add</div>
+                    </div>
+                  );
+                })}
             </div>
           ))}
         </div>
@@ -393,6 +475,34 @@ function SchedulePage({ courses }) {
   const [search, setSearch] = useState("");
   const [showCreditInfo, setShowCreditInfo] = useState(false);
   const [creditTooltip, setCreditTooltip] = useState(null); // "overload" | "overmax" | null
+  const [previewCourseId, setPreviewCourseId] = useState(null);
+
+  // Build preview sections: all sections from the previewed course that aren't already on the schedule
+  const previewSections = useMemo(() => {
+    if (!previewCourseId) return [];
+    const course = courses.find((c) => c.id === previewCourseId);
+    if (!course) return [];
+    const alreadySelected = selectedSections[previewCourseId] ?? [];
+    return course.sections
+      .filter((sec) => !alreadySelected.includes(sec.sectionId))
+      .map((sec) => ({ courseId: course.id, courseCode: course.code, section: sec }));
+  }, [previewCourseId, courses, selectedSections]);
+
+  // Auto-clear preview when all section types are covered (one of each type selected)
+  useEffect(() => {
+    if (!previewCourseId) return;
+    const course = courses.find((c) => c.id === previewCourseId);
+    if (!course) return;
+    const selected = selectedSections[previewCourseId] ?? [];
+    if (selected.length === 0) return;
+    const allTypes = new Set(course.sections.map((s) => s.type));
+    const selectedTypes = new Set(
+      course.sections.filter((s) => selected.includes(s.sectionId)).map((s) => s.type)
+    );
+    if (allTypes.size === selectedTypes.size) {
+      setPreviewCourseId(null);
+    }
+  }, [previewCourseId, selectedSections, courses]);
 
   // Auto-dismiss conflict warnings: fade starts at 4s, removed at 5s
   useEffect(() => {
@@ -485,6 +595,8 @@ function SchedulePage({ courses }) {
               selectedSections={selectedSections}
               colorMap={colorMap}
               onToggleSection={handleToggleSection}
+              previewCourseId={previewCourseId}
+              onPreviewCourse={setPreviewCourseId}
             />
           ))}
           {filtered.length === 0 && (
@@ -599,7 +711,17 @@ function SchedulePage({ courses }) {
             background: "#fff", borderRadius: 10, border: "1px solid #e5e7eb",
             height: "100%", overflow: "hidden", display: "flex", flexDirection: "column",
           }}>
-            <WeekGrid schedule={schedule} colorMap={colorMap} />
+            <WeekGrid schedule={schedule} colorMap={colorMap} previewSections={previewSections}
+              previewCourseId={previewCourseId}
+              onAddPreviewSection={(ps) => {
+                const course = courses.find((c) => c.id === ps.courseId);
+                if (course) handleToggleSection(course, ps.section);
+              }}
+              onRemovePreviewSection={(ps) => {
+                const course = courses.find((c) => c.id === ps.courseId);
+                if (course) handleToggleSection(course, ps.section);
+              }}
+            />
           </div>
         </div>
       </div>
