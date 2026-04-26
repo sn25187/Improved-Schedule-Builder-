@@ -538,33 +538,42 @@ function SchedulePage({ courses, allCourses, search, onSearchChange, loading }) 
     return () => { clearTimeout(fadeTimer); clearTimeout(clearTimer); };
   }, [conflicts]);
 
+  // Merge allCourses and search-result courses so we always have data for
+  // courses the user has interacted with (even if they later change the search).
+  const knownCourses = useMemo(() => {
+    const map = new Map();
+    allCourses.forEach((c) => map.set(c.id, c));
+    courses.forEach((c) => map.set(c.id, c));
+    return Array.from(map.values());
+  }, [allCourses, courses]);
+
   const colorMap = useMemo(() => {
     const map = {};
     let i = 0;
-    allCourses.forEach((c) => { map[c.id] = SECTION_COLORS[i++ % SECTION_COLORS.length]; });
+    knownCourses.forEach((c) => { map[c.id] = SECTION_COLORS[i++ % SECTION_COLORS.length]; });
     return map;
-  }, [allCourses]);
+  }, [knownCourses]);
 
   const schedule = useMemo(() => {
     const out = [];
-    allCourses.forEach((c) => {
+    knownCourses.forEach((c) => {
       (selectedSections[c.id] ?? []).forEach((sid) => {
         const sec = c.sections.find((s) => s.sectionId === sid);
         if (sec) out.push({ courseId: c.id, courseCode: c.code, courseName: c.name, credits: c.credits, instructor: c.instructor, college: c.college, section: sec });
       });
     });
     return out;
-  }, [selectedSections, allCourses]);
+  }, [selectedSections, knownCourses]);
 
   const totalCredits = useMemo(() => {
     return Object.keys(selectedSections).reduce((sum, cid) => {
       if ((selectedSections[cid] ?? []).length > 0) {
-        const c = allCourses.find((x) => x.id === cid);
+        const c = knownCourses.find((x) => x.id === cid);
         return sum + (c?.credits ?? 0);
       }
       return sum;
     }, 0);
-  }, [selectedSections, allCourses]);
+  }, [selectedSections, knownCourses]);
 
   function handleToggleSection(course, section) {
     const prev = selectedSections[course.id] ?? [];
@@ -759,11 +768,11 @@ function SchedulePage({ courses, allCourses, search, onSearchChange, loading }) 
             <WeekGrid schedule={schedule} colorMap={colorMap} previewSections={previewSections}
               previewCourseId={previewCourseId}
               onAddPreviewSection={(ps) => {
-                const course = courses.find((c) => c.id === ps.courseId);
+                const course = knownCourses.find((c) => c.id === ps.courseId);
                 if (course) handleToggleSection(course, ps.section);
               }}
               onRemovePreviewSection={(ps) => {
-                const course = courses.find((c) => c.id === ps.courseId);
+                const course = knownCourses.find((c) => c.id === ps.courseId);
                 if (course) handleToggleSection(course, ps.section);
               }}
             />
@@ -1049,13 +1058,13 @@ export default function BUScheduleBuilder() {
   const [page, setPage] = useState("schedule");   // `page` is either "schedule" or "hub" — drives which component renders below the nav
   const [search, setSearch] = useState("");
 
-  // Load at beginning
+  // Load all courses at startup for colorMap, schedule building, HUB finder, etc.
   useEffect(() => {
-    fetch("http:localhost:8080/api/courses")
+    fetch("http://localhost:8080/api/courses")
       .then(res => res.json())
       .then(data => {
         setAllCourses(data);
-        setLoading(false);    // don't setCourses here anymore — search handles that
+        setLoading(false);
       })
       .catch(() => setLoading(false));
   }, []);
