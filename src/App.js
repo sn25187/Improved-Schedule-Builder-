@@ -1,72 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
 
-// ─── Sample Data ──────────────────────────────────────────────────────────────
-// Replace with: import courses from "./courses.json";
-// Your JSON's crse_attr_value field holds HUB codes like "HUB-CRT,HUB-SO1"
-// The sample data below mimics that shape so the HUB page works out of the box.
-const SAMPLE_COURSES = [
-  {
-    id: "CS111", name: "Introduction to Computer Science", code: "CS 111",
-    credits: 4, instructor: "TBD", college: "CAS",
-    hubCodes: ["HUB-DLC", "HUB-QR"],
-    sections: [
-      { sectionId: "A1", days: ["Mon", "Wed", "Fri"], startTime: "10:10", endTime: "11:00", room: "CAS 313", type: "Lecture" },
-      { sectionId: "D1", days: ["Thu"], startTime: "12:20", endTime: "13:10", room: "PHO 210", type: "Discussion" },
-    ],
-  },
-  {
-    id: "CS112", name: "Introduction to CS II", code: "CS 112",
-    credits: 4, instructor: "TBD", college: "CAS",
-    hubCodes: ["HUB-DLC", "HUB-TWC"],
-    sections: [
-      { sectionId: "A1", days: ["Tue", "Thu"], startTime: "09:30", endTime: "10:45", room: "CAS 211", type: "Lecture" },
-      { sectionId: "D1", days: ["Fri"], startTime: "13:25", endTime: "14:15", room: "EMA 304", type: "Discussion" },
-    ],
-  },
-  {
-    id: "MA225", name: "Multivariate Calculus", code: "MA 225",
-    credits: 4, instructor: "TBD", college: "CAS",
-    hubCodes: ["HUB-QR", "HUB-FYW"],
-    sections: [
-      { sectionId: "A1", days: ["Mon", "Wed", "Fri"], startTime: "12:20", endTime: "13:10", room: "CAS 426", type: "Lecture" },
-    ],
-  },
-  {
-    id: "WR120", name: "Writing and Research", code: "WR 120",
-    credits: 4, instructor: "TBD", college: "CAS",
-    hubCodes: ["HUB-FYW", "HUB-CRT", "HUB-IIC"],
-    sections: [
-      { sectionId: "A1", days: ["Tue", "Thu"], startTime: "12:20", endTime: "13:35", room: "STH B20", type: "Lecture" },
-      { sectionId: "B1", days: ["Mon", "Wed"], startTime: "14:30", endTime: "15:45", room: "CAS 201", type: "Lecture" },
-    ],
-  },
-  {
-    id: "PH211", name: "General Physics I", code: "PH 211",
-    credits: 4, instructor: "TBD", college: "CAS",
-    hubCodes: ["HUB-SCI", "HUB-QR", "HUB-RIL"],
-    sections: [
-      { sectionId: "A1", days: ["Mon", "Wed", "Fri"], startTime: "08:00", endTime: "08:50", room: "SCI 115", type: "Lecture" },
-      { sectionId: "L1", days: ["Thu"], startTime: "14:30", endTime: "17:15", room: "SCI 112", type: "Lab" },
-    ],
-  },
-  {
-    id: "HI100", name: "History of Western Civilization", code: "HI 100",
-    credits: 4, instructor: "TBD", college: "CAS",
-    hubCodes: ["HUB-HCO", "HUB-SO1", "HUB-WIN"],
-    sections: [
-      { sectionId: "A1", days: ["Mon", "Wed", "Fri"], startTime: "11:15", endTime: "12:05", room: "CAS 226", type: "Lecture" },
-    ],
-  },
-  {
-    id: "PH150", name: "Introduction to Philosophy", code: "PH 150",
-    credits: 4, instructor: "TBD", college: "CAS",
-    hubCodes: ["HUB-CRT", "HUB-ETH", "HUB-HCO"],
-    sections: [
-      { sectionId: "A1", days: ["Tue", "Thu"], startTime: "11:00", endTime: "12:15", room: "CAS 313", type: "Lecture" },
-    ],
-  },
-];
-
 // ─── HUB Requirement Definitions ──────────────────────────────────────────────
 // Complete BU HUB curriculum map. Each entry has:
 //   code     → the short code used in crse_attr_value (e.g. "HUB-CRT")
@@ -468,11 +401,10 @@ function WeekGrid({ schedule, colorMap, previewSections, onAddPreviewSection, pr
 // ─── SchedulePage Component ───────────────────────────────────────────────────
 // The original schedule builder, now extracted into its own component so the
 // main app can swap between this and the HUB finder page.
-function SchedulePage({ courses }) {
+function SchedulePage({ courses, allCourses, search, onSearchChange, loading }) {
   const [selectedSections, setSelectedSections] = useState({});
   const [conflicts, setConflicts] = useState([]);
   const [conflictFading, setConflictFading] = useState(false);
-  const [search, setSearch] = useState("");
   const [showCreditInfo, setShowCreditInfo] = useState(false);
   const [creditTooltip, setCreditTooltip] = useState(null); // "overload" | "overmax" | null
   const [previewCourseId, setPreviewCourseId] = useState(null);
@@ -516,13 +448,13 @@ function SchedulePage({ courses }) {
   const colorMap = useMemo(() => {
     const map = {};
     let i = 0;
-    courses.forEach((c) => { map[c.id] = SECTION_COLORS[i++ % SECTION_COLORS.length]; });
+    allCourses.forEach((c) => { map[c.id] = SECTION_COLORS[i++ % SECTION_COLORS.length]; });
     return map;
   }, [courses]);
 
   const schedule = useMemo(() => {
     const out = [];
-    courses.forEach((c) => {
+    allCourses.forEach((c) => {
       (selectedSections[c.id] ?? []).forEach((sid) => {
         const sec = c.sections.find((s) => s.sectionId === sid);
         if (sec) out.push({ courseId: c.id, courseCode: c.code, courseName: c.name, credits: c.credits, instructor: c.instructor, college: c.college, section: sec });
@@ -534,7 +466,7 @@ function SchedulePage({ courses }) {
   const totalCredits = useMemo(() => {
     return Object.keys(selectedSections).reduce((sum, cid) => {
       if ((selectedSections[cid] ?? []).length > 0) {
-        const c = courses.find((x) => x.id === cid);
+        const c = allCourses.find((x) => x.id === cid);
         return sum + (c?.credits ?? 0);
       }
       return sum;
@@ -563,12 +495,7 @@ function SchedulePage({ courses }) {
     setConflicts([]);
   }
 
-  const filtered = courses.filter(
-    (c) =>
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.code.toLowerCase().includes(search.toLowerCase()) ||
-      c.college.toLowerCase().includes(search.toLowerCase())
-  );
+  console.log("courses:", courses.length, "loading:", loading, "search:", search);
 
   return (
     <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
@@ -580,27 +507,52 @@ function SchedulePage({ courses }) {
         <div style={{ padding: "12px 16px 10px", borderBottom: "1px solid #f3f4f6" }}>
           <input
             type="text" placeholder="Search courses..."
-            value={search} onChange={(e) => setSearch(e.target.value)}
+            value={search} onChange={(e) => onSearchChange(e.target.value)}
             style={{
               width: "100%", boxSizing: "border-box", padding: "6px 10px",
               fontSize: 12, border: "1px solid #e5e7eb", borderRadius: 7,
               outline: "none", color: "#111827", background: "#f9fafb",
+              opacity: loading ? 0.6 : 1,         // ← dims while fetching
+              transition: "opacity 0.2s",
             }}
           />
         </div>
         <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px" }}>
-          {filtered.map((c) => (
-            <CourseCard
-              key={c.id} course={c}
-              selectedSections={selectedSections}
-              colorMap={colorMap}
-              onToggleSection={handleToggleSection}
-              previewCourseId={previewCourseId}
-              onPreviewCourse={setPreviewCourseId}
-            />
-          ))}
-          {filtered.length === 0 && (
+          {loading ? (
+            Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} style={{
+                border: "1.5px solid #e5e7eb", borderRadius: 10,
+                marginBottom: 10, padding: "10px 12px", background: "#fff",
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                  <div style={{ height: 12, width: "40%", background: "#f3f4f6", borderRadius: 4 }} />
+                  <div style={{ height: 12, width: "15%", background: "#f3f4f6", borderRadius: 4 }} />
+                </div>
+                <div style={{ height: 11, width: "80%", background: "#f3f4f6", borderRadius: 4, marginBottom: 6 }} />
+                <div style={{ height: 10, width: "25%", background: "#f3f4f6", borderRadius: 4 }} />
+              </div>
+            ))
+          ) : search.trim().length < 2 ? (
+            // Don't render 2,947 cards — prompt user to search instead
+            <div style={{ textAlign: "center", marginTop: 40, color: "#9ca3af" }}>
+              <div style={{ fontSize: 24, marginBottom: 8 }}>🔍</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 4 }}>Search for a course</div>
+              <div style={{ fontSize: 12 }}>Type at least 2 characters<br />to find courses</div>
+            </div>
+          ) : courses.length === 0 ? (
             <div style={{ fontSize: 12, color: "#9ca3af", textAlign: "center", marginTop: 24 }}>No courses match.</div>
+          ) : (
+            // Cap at 50 results to keep the sidebar responsive
+            courses.slice(0, 50).map((c) => (
+              <CourseCard
+                key={c.id} course={c}
+                selectedSections={selectedSections}
+                colorMap={colorMap}
+                onToggleSection={handleToggleSection}
+                previewCourseId={previewCourseId}
+                onPreviewCourse={setPreviewCourseId}
+              />
+            ))
           )}
         </div>
         <div style={{ padding: "10px 16px", borderTop: "1px solid #f3f4f6", background: "#fff" }}>
@@ -998,15 +950,52 @@ function HubFinderPage({ courses }) {
 // which controls which page is currently visible. Everything else lives inside
 // the individual page components so their state resets cleanly when you switch.
 export default function BUScheduleBuilder() {
-  // Swap SAMPLE_COURSES for your real import once your teammates' JSON is ready:
-  //   import courses from "./courses.json";
-  // If your JSON uses `crse_attr_value` for HUBs (e.g. "HUB-CRT,HUB-SO1"),
-  // you'll need a transform step to turn that string into a `hubCodes` array:
-  //   courses.forEach(c => { c.hubCodes = (c.crse_attr_value || "").split(",").filter(x => x.startsWith("HUB-")); });
-  const courses = SAMPLE_COURSES;
+  const [allCourses, setAllCourses] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState("schedule");   // `page` is either "schedule" or "hub" — drives which component renders below the nav
+  const [search, setSearch] = useState("");
 
-  // `page` is either "schedule" or "hub" — drives which component renders below the nav
-  const [page, setPage] = useState("schedule");
+  // Load at beginning
+  useEffect(() => {
+    fetch("/api/courses")
+      .then(res => res.json())
+      .then(data => {
+        setAllCourses(data);
+        setLoading(false);    // don't setCourses here anymore — search handles that
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  // Debounced search — skip if search is empty (let initial load handle that)
+  useEffect(() => {
+    console.log("search effect fired, search:", JSON.stringify(search));
+    if (search.trim().length < 2) {
+      setCourses([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    const timer = setTimeout(() => {
+      const url = `http://localhost:8080/api/courses?q=${encodeURIComponent(search)}`;
+      console.log("fetching:", url);
+      fetch(url)
+        .then(res => {
+          console.log("response status:", res.status);
+          return res.json();
+        })
+        .then(data => {
+          console.log("got data, length:", data.length, "first:", data[0]?.name);
+          setCourses(data);
+          setLoading(false);
+        })
+        .catch(err => {
+          console.error("fetch failed:", err);
+          setLoading(false);
+        });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", fontFamily: "'Inter', system-ui, sans-serif", background: "#f9fafb" }}>
@@ -1016,8 +1005,16 @@ export default function BUScheduleBuilder() {
       {/* Conditionally render either the schedule builder or the HUB finder.
           React re-mounts the component when you switch, which resets its internal state.
           That's intentional — your HUB selections and schedule selections are independent. */}
-      {page === "schedule" && <SchedulePage courses={courses} />}
-      {page === "hub" && <HubFinderPage courses={courses} />}
+      {page === "schedule" && (
+        <SchedulePage 
+          courses={courses} 
+          allCourses={allCourses}
+          search={search}
+          onSearchChange={setSearch}
+          loading={loading}
+        />
+      )}
+      {page === "hub" && <HubFinderPage courses={allCourses} />}
     </div>
   );
 }
