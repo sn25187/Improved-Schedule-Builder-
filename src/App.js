@@ -150,6 +150,18 @@ function hasConflict(existing, newSection) {
   return false;
 }
 
+// Group preview sections that share the same (courseId, startTime, endTime) into one slot.
+// Returns an array of arrays – each inner array is a group of preview entries.
+function groupPreviewsBySlot(previewsForDay) {
+  const groups = {};
+  for (const ps of previewsForDay) {
+    const key = `${ps.courseId}|${ps.section.startTime}|${ps.section.endTime}`;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(ps);
+  }
+  return Object.values(groups);
+}
+
 // ─── NavBar Component ─────────────────────────────────────────────────────────
 // Renders the top navigation bar with BU branding and a page-switcher dropdown.
 // `page` is the current active page; `onPageChange` is called when the user picks a new one.
@@ -213,9 +225,13 @@ function CourseCard({ course, selectedSections, colorMap, onToggleSection, previ
     }}>
       {/* Clickable course banner for preview */}
       <div
-        onClick={() => onPreviewCourse(isPreviewing ? null : course.id)}
+        onClick={() => {
+          // Don't allow toggling preview on when all section types are already covered
+          if (allTypesCovered && !isPreviewing) return;
+          onPreviewCourse(isPreviewing ? null : course.id);
+        }}
         style={{
-          padding: "10px 12px", cursor: "pointer",
+          padding: "10px 12px", cursor: allTypesCovered ? "default" : "pointer",
           transition: "background 0.12s",
           background: isPreviewing ? `${color?.border ?? "#6366f1"}11` : "transparent",
         }}
@@ -242,23 +258,28 @@ function CourseCard({ course, selectedSections, colorMap, onToggleSection, previ
           const isSelected = selected.includes(sec.sectionId);
           // Show warning if this section's type is missing AND at least one other type is selected
           const isMissing = isAnySelected && !selectedTypes.has(sec.type) && !isSelected;
+          // Disable if another section of the same type is already selected (but not this one)
+          const isDisabled = !isSelected && selectedTypes.has(sec.type);
           return (
             <button
               key={sec.sectionId}
-              onClick={() => onToggleSection(course, sec)}
+              onClick={() => { if (!isDisabled) onToggleSection(course, sec); }}
               style={{
                 display: "flex", width: "100%", alignItems: "center",
                 justifyContent: "space-between", padding: "7px 12px",
                 background: isSelected ? color?.bg ?? "#eff6ff" : isMissing ? "#fff7ed" : "transparent",
                 border: "none", borderBottom: "1px solid #f9fafb",
-                cursor: "pointer", textAlign: "left", gap: 8, transition: "background 0.12s",
+                cursor: isDisabled ? "default" : "pointer", textAlign: "left", gap: 8,
+                transition: "background 0.12s, opacity 0.15s",
+                opacity: isDisabled ? 0.4 : 1,
+                pointerEvents: isDisabled ? "none" : "auto",
               }}
             >
               <div>
-                <span style={{ fontSize: 11, fontWeight: 600, color: isSelected ? color?.text : "#374151" }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: isSelected ? color?.text : isDisabled ? "#9ca3af" : "#374151" }}>
                   {sec.type} {sec.sectionId}
                 </span>
-                <div style={{ fontSize: 11, color: "#6b7280", marginTop: 1 }}>
+                <div style={{ fontSize: 11, color: isDisabled ? "#d1d5db" : "#6b7280", marginTop: 1 }}>
                   {sec.days.join("/")} · {sec.startTime}–{sec.endTime} · {sec.room}
                 </div>
               </div>
@@ -272,7 +293,7 @@ function CourseCard({ course, selectedSections, colorMap, onToggleSection, previ
                 )}
                 <div style={{
                   width: 16, height: 16, borderRadius: "50%",
-                  border: `2px solid ${isSelected ? color?.border : "#d1d5db"}`,
+                  border: `2px solid ${isSelected ? color?.border : isDisabled ? "#e5e7eb" : "#d1d5db"}`,
                   background: isSelected ? color?.border : "transparent", flexShrink: 0,
                 }} />
               </div>
@@ -290,6 +311,7 @@ function WeekGrid({ schedule, colorMap, previewSections, onAddPreviewSection, pr
   const gridEnd = 21 * 60;
   const totalMinutes = gridEnd - gridStart;
   const [selectedBlock, setSelectedBlock] = useState(null); // { courseId, sectionId, day }
+  const [openPickerKey, setOpenPickerKey] = useState(null); // key string for the currently-open section picker
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", userSelect: "none" }}>
@@ -419,42 +441,113 @@ function WeekGrid({ schedule, colorMap, previewSections, onAddPreviewSection, pr
                     </div>
                   );
                 })}
-              {/* Preview / ghost blocks — clickable to add to schedule */}
-              {(previewSections ?? [])
-                .filter((ps) => ps.section.days.includes(day))
-                .map((ps) => {
-                  const color = colorMap[ps.courseId] ?? SECTION_COLORS[0];
-                  const top = ((timeToMinutes(ps.section.startTime) - gridStart) / totalMinutes) * 100;
-                  const height = ((timeToMinutes(ps.section.endTime) - timeToMinutes(ps.section.startTime)) / totalMinutes) * 100;
-                  return (
-                    <div key={`preview-${ps.courseId}-${ps.section.sectionId}`}
-                      onClick={(e) => { e.stopPropagation(); onAddPreviewSection?.(ps); }}
-                      style={{
-                        position: "absolute", top: `${top}%`, left: 2, right: 2, height: `${height}%`,
-                        background: `${color.border}12`, border: `2px dashed ${color.border}`,
-                        borderRadius: 6, padding: "3px 5px", boxSizing: "border-box",
-                        cursor: "pointer", zIndex: 2,
-                        animation: "previewPulse 2s ease-in-out infinite",
-                        transition: "background 0.15s, border-color 0.15s",
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = `${color.border}28`; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = `${color.border}12`; }}
-                    >
-                      <div style={{ fontSize: 10, fontWeight: 700, color: color.border, opacity: 0.7, lineHeight: 1.3 }}>{ps.courseCode}</div>
-                      <div style={{ fontSize: 9, color: color.border, opacity: 0.55 }}>{ps.section.type} {ps.section.sectionId}</div>
-                      <div style={{ fontSize: 9, color: color.border, opacity: 0.45 }}>{ps.section.startTime}–{ps.section.endTime}</div>
-                      <div style={{ fontSize: 8, color: color.border, opacity: 0.5, marginTop: 1, fontStyle: "italic" }}>Click to add</div>
+              {/* Preview / ghost blocks — grouped by time slot to avoid overlap */}
+              {groupPreviewsBySlot(
+                (previewSections ?? []).filter((ps) => ps.section.days.includes(day))
+              ).map((group) => {
+                const rep = group[0]; // representative entry for positioning
+                const color = colorMap[rep.courseId] ?? SECTION_COLORS[0];
+                const top = ((timeToMinutes(rep.section.startTime) - gridStart) / totalMinutes) * 100;
+                const height = ((timeToMinutes(rep.section.endTime) - timeToMinutes(rep.section.startTime)) / totalMinutes) * 100;
+                const isSingle = group.length === 1;
+                const pickerKey = `${rep.courseId}|${rep.section.startTime}|${rep.section.endTime}|${day}`;
+                const isPickerOpen = openPickerKey === pickerKey;
+
+                return (
+                  <div key={`preview-group-${pickerKey}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isSingle) {
+                        onAddPreviewSection?.(rep);
+                      } else {
+                        setOpenPickerKey(isPickerOpen ? null : pickerKey);
+                      }
+                    }}
+                    style={{
+                      position: "absolute", top: `${top}%`, left: 2, right: 2, height: `${height}%`,
+                      background: `${color.border}12`, border: `2px dashed ${color.border}`,
+                      borderRadius: 6, padding: "3px 5px", boxSizing: "border-box",
+                      cursor: "pointer", zIndex: isPickerOpen ? 25 : 2,
+                      animation: "previewPulse 2s ease-in-out infinite",
+                      transition: "background 0.15s, border-color 0.15s",
+                      overflow: "visible",
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = `${color.border}28`; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = `${color.border}12`; }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: color.border, opacity: 0.7, lineHeight: 1.3 }}>{rep.courseCode}</div>
+                      {!isSingle && (
+                        <span style={{
+                          fontSize: 9, fontWeight: 700, color: "#fff",
+                          background: color.border, borderRadius: 8,
+                          padding: "1px 6px", lineHeight: 1.4, flexShrink: 0,
+                        }}>{group.length}</span>
+                      )}
                     </div>
-                  );
-                })}
+                    {isSingle ? (
+                      <>
+                        <div style={{ fontSize: 9, color: color.border, opacity: 0.55 }}>{rep.section.type} {rep.section.sectionId}</div>
+                        <div style={{ fontSize: 9, color: color.border, opacity: 0.45 }}>{rep.section.startTime}–{rep.section.endTime}</div>
+                        <div style={{ fontSize: 8, color: color.border, opacity: 0.5, marginTop: 1, fontStyle: "italic" }}>Click to add</div>
+                      </>
+                    ) : (
+                      <>
+                        <div style={{ fontSize: 9, color: color.border, opacity: 0.55 }}>{rep.section.type} · {rep.section.startTime}–{rep.section.endTime}</div>
+                        <div style={{ fontSize: 8, color: color.border, opacity: 0.5, marginTop: 1, fontStyle: "italic" }}>
+                          {isPickerOpen ? "Pick a section ↓" : "Click to choose"}
+                        </div>
+                      </>
+                    )}
+
+                    {/* Section Picker Dropdown */}
+                    {isPickerOpen && !isSingle && (
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          position: "absolute", top: "100%", left: 0, right: 0,
+                          marginTop: 4, background: "#1f2937", borderRadius: 8,
+                          border: `1.5px solid ${color.border}`, boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
+                          maxHeight: 160, overflowY: "auto", zIndex: 30,
+                        }}
+                        className="section-picker-scroll"
+                      >
+                        <div style={{ padding: "6px 8px 4px", fontSize: 9, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "1px solid #374151" }}>
+                          {group.length} sections available
+                        </div>
+                        {group.map((ps) => (
+                          <div
+                            key={ps.section.sectionId}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onAddPreviewSection?.(ps);
+                              setOpenPickerKey(null);
+                            }}
+                            style={{
+                              padding: "6px 8px", cursor: "pointer",
+                              borderBottom: "1px solid #374151",
+                              transition: "background 0.1s",
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = "#374151"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                          >
+                            <div style={{ fontSize: 11, fontWeight: 600, color: "#f3f4f6" }}>{ps.section.type} {ps.section.sectionId}</div>
+                            <div style={{ fontSize: 10, color: "#9ca3af" }}>{ps.section.room}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ))}
         </div>
 
-        {/* Click on empty space to dismiss popup */}
-        {selectedBlock && (
+        {/* Click on empty space to dismiss popup / picker */}
+        {(selectedBlock || openPickerKey) && (
           <div
-            onClick={() => setSelectedBlock(null)}
+            onClick={() => { setSelectedBlock(null); setOpenPickerKey(null); }}
             style={{ position: "absolute", inset: 0, zIndex: 0 }}
           />
         )}
