@@ -543,7 +543,7 @@ function SchedulePage({ courses, allCourses, search, onSearchChange, loading }) 
     let i = 0;
     allCourses.forEach((c) => { map[c.id] = SECTION_COLORS[i++ % SECTION_COLORS.length]; });
     return map;
-  }, [courses]);
+  }, [allCourses]);
 
   const schedule = useMemo(() => {
     const out = [];
@@ -554,7 +554,7 @@ function SchedulePage({ courses, allCourses, search, onSearchChange, loading }) 
       });
     });
     return out;
-  }, [selectedSections, courses]);
+  }, [selectedSections, allCourses]);
 
   const totalCredits = useMemo(() => {
     return Object.keys(selectedSections).reduce((sum, cid) => {
@@ -564,7 +564,7 @@ function SchedulePage({ courses, allCourses, search, onSearchChange, loading }) 
       }
       return sum;
     }, 0);
-  }, [selectedSections, courses]);
+  }, [selectedSections, allCourses]);
 
   function handleToggleSection(course, section) {
     const prev = selectedSections[course.id] ?? [];
@@ -1051,7 +1051,7 @@ export default function BUScheduleBuilder() {
 
   // Load at beginning
   useEffect(() => {
-    fetch("/api/courses")
+    fetch("http:localhost:8080/api/courses")
       .then(res => res.json())
       .then(data => {
         setAllCourses(data);
