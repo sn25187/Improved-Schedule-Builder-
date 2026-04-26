@@ -30,7 +30,7 @@ public class CourseController {
 
         List<Course> result = (q != null && !q.isBlank())
             ? courseRepository.search(q)
-            : List.of();
+            : courseRepository.findAll();
 
         return ResponseEntity.ok(result);
     }
