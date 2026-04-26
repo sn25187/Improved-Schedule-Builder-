@@ -502,14 +502,21 @@ function SchedulePage({ courses, allCourses, search, onSearchChange, loading }) 
   const [creditTooltip, setCreditTooltip] = useState(null); // "overload" | "overmax" | null
   const [previewCourseId, setPreviewCourseId] = useState(null);
 
-  // Build preview sections: all sections from the previewed course that aren't already on the schedule
+  // Build preview sections: all sections from the previewed course that aren't
+  // already on the schedule AND whose type isn't already covered by a selection.
   const previewSections = useMemo(() => {
     if (!previewCourseId) return [];
     const course = courses.find((c) => c.id === previewCourseId);
     if (!course) return [];
     const alreadySelected = selectedSections[previewCourseId] ?? [];
+    // Determine which section types are already covered
+    const coveredTypes = new Set(
+      course.sections
+        .filter((s) => alreadySelected.includes(s.sectionId))
+        .map((s) => s.type)
+    );
     return course.sections
-      .filter((sec) => !alreadySelected.includes(sec.sectionId))
+      .filter((sec) => !alreadySelected.includes(sec.sectionId) && !coveredTypes.has(sec.type))
       .map((sec) => ({ courseId: course.id, courseCode: course.code, section: sec }));
   }, [previewCourseId, courses, selectedSections]);
 
@@ -582,6 +589,14 @@ function SchedulePage({ courses, allCourses, search, onSearchChange, loading }) 
       setSelectedSections((s) => ({ ...s, [course.id]: prev.filter((id) => id !== section.sectionId) }));
       setConflicts((c) => { const f = c.filter((msg) => !msg.startsWith(course.code)); return f.length === c.length ? c : f; });
     } else {
+      // Block if another section of the same type is already selected
+      const sameTypeSelected = course.sections.find(
+        (s) => s.sectionId !== section.sectionId && s.type === section.type && prev.includes(s.sectionId)
+      );
+      if (sameTypeSelected) {
+        setConflicts((c) => [...c, `${course.code}: a ${section.type} section is already selected (${sameTypeSelected.sectionId}).`]);
+        return;
+      }
       const rest = schedule.filter((e) => !(e.courseId === course.id && prev.includes(e.section.sectionId)));
       if (hasConflict(rest, section)) {
         setConflicts((c) => [...c, `${course.code} ${section.sectionId} conflicts with an existing section.`]);
