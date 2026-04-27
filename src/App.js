@@ -361,15 +361,48 @@ function WeekGrid({ schedule, colorMap, previewSections, onAddPreviewSection, pr
                 const previewGroupsForDay = groupPreviewsBySlot(
                   (previewSections ?? []).filter((ps) => ps.section.days.includes(day))
                 );
-
-                // Bucket group indices by exact (startTime, endTime) to compute splits
-                const timeSlotBuckets = {};
-                previewGroupsForDay.forEach((group, i) => {
-                  const { startTime, endTime } = group[0].section;
-                  const tk = `${startTime}|${endTime}`;
-                  if (!timeSlotBuckets[tk]) timeSlotBuckets[tk] = [];
-                  timeSlotBuckets[tk].push(i);
-                });
+                
+                // Overlap-aware column assignment.
+                // Step 1 — BFS to cluster groups that overlap (directly or transitively).
+                // Step 2 — Greedy lowest-free-column assignment within each cluster.
+                const n = previewGroupsForDay.length;
+                const clusterOf = new Array(n).fill(-1);
+                let clusterCount = 0;
+                for (let i = 0; i < n; i++) {
+                  if (clusterOf[i] !== -1) continue;
+                  const queue = [i];
+                  clusterOf[i] = clusterCount;
+                  let qi = 0;
+                  while (qi < queue.length) {
+                    const cur = queue[qi++];
+                    const aS = timeToMinutes(previewGroupsForDay[cur][0].section.startTime);
+                    const aE = timeToMinutes(previewGroupsForDay[cur][0].section.endTime);
+                    for (let j = 0; j < n; j++) {
+                      if (clusterOf[j] !== -1) continue;
+                      const bS = timeToMinutes(previewGroupsForDay[j][0].section.startTime);
+                      const bE = timeToMinutes(previewGroupsForDay[j][0].section.endTime);
+                      if (aS < bE && bS < aE) { clusterOf[j] = clusterCount; queue.push(j); }
+                    }
+                  }
+                  clusterCount++;
+                }
+                const sortedIdxs = Array.from({ length: n }, (_, i) => i)
+                  .sort((a, b) =>
+                    timeToMinutes(previewGroupsForDay[a][0].section.startTime) -
+                    timeToMinutes(previewGroupsForDay[b][0].section.startTime)
+                  );
+                const colOf = new Array(n).fill(0);
+                const clusterColEnds = {};
+                for (const i of sortedIdxs) {
+                  const c = clusterOf[i];
+                  if (!clusterColEnds[c]) clusterColEnds[c] = [];
+                  const s = timeToMinutes(previewGroupsForDay[i][0].section.startTime);
+                  const e = timeToMinutes(previewGroupsForDay[i][0].section.endTime);
+                  let col = clusterColEnds[c].findIndex(et => et <= s);
+                  if (col === -1) { col = clusterColEnds[c].length; clusterColEnds[c].push(0); }
+                  clusterColEnds[c][col] = e;
+                  colOf[i] = col;
+                }
 
                 return previewGroupsForDay.map((group, groupIdx) => {
                   const rep = group[0];
@@ -382,11 +415,9 @@ function WeekGrid({ schedule, colorMap, previewSections, onAddPreviewSection, pr
                   const pickerKey = `${rep.courseId}|${rep.section.type}|${rep.section.startTime}|${rep.section.endTime}|${day}`;
                   const isPickerOpen = openPickerKey === pickerKey;
 
-                  // Column position within this time slot
-                  const tk = `${rep.section.startTime}|${rep.section.endTime}`;
-                  const bucket = timeSlotBuckets[tk];
-                  const col = bucket.indexOf(groupIdx);
-                  const totalCols = bucket.length;
+                  // Column position within this overlap cluster
+                  const col = colOf[groupIdx];
+                  const totalCols = clusterColEnds[clusterOf[groupIdx]].length;
 
                   // left / right expressed as calc() strings so they work at any column width.
                   // With totalCols=1, col=0: left="calc(0% + 2px)", right="calc(0% + 2px)" = old behaviour.
