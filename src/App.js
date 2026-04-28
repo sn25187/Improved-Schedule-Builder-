@@ -18,7 +18,7 @@ const HUB_REQUIREMENTS = [
   { code: "HUB-WIN", label: "Writing-Intensive Course", category: "Communication", color: "#8b5cf6" },
   { code: "HUB-OSC", label: "Oral and/or Signed Communication", category: "Communication", color: "#8b5cf6" },
   { code: "HUB-DME", label: "Digital/Multimedia Expression", category: "Communication", color: "#8b5cf6" },
-  { code: "HUB-CTR", label: "Critical Thinking", category: "Intellectual Toolkit", color: "#6366f1" },
+  { code: "HUB-CRT", label: "Critical Thinking", category: "Intellectual Toolkit", color: "#6366f1" },
   { code: "HUB-RIL", label: "Research and Information Literacy", category: "Intellectual Toolkit", color: "#6366f1" },
   { code: "HUB-TWC", label: "Teamwork/Collaboration", category: "Intellectual Toolkit", color: "#6366f1" },
   { code: "HUB-CRI", label: "Creativity/Innovation", category: "Intellectual Toolkit", color: "#6366f1" },
