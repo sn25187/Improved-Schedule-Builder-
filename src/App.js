@@ -89,7 +89,8 @@ function hasConflict(existing, newSection) {
 function groupPreviewsBySlot(previewsForDay) {
   const groups = {};
   for (const ps of previewsForDay) {
-    const key = `${ps.courseId}|${ps.section.type}|${ps.section.startTime}|${ps.section.endTime}`;
+    const m = ps.meeting ?? ps.section.meetings?.[0];
+    const key = `${ps.courseId}|${ps.section.type}|${m?.startTime}|${m?.endTime}`;
     if (!groups[key]) groups[key] = [];
     groups[key].push(ps);
   }
@@ -374,7 +375,9 @@ function WeekGrid({ schedule, colorMap, previewSections, onAddPreviewSection, pr
                   same time slot but different types don't share state. ──────── */}
               {(() => {
                 const previewGroupsForDay = groupPreviewsBySlot(
-                  (previewSections ?? []).filter((ps) => ps.section.days.includes(day))
+                  (previewSections ?? [])
+                    .filter((ps) => allDaysForSection(ps.section).includes(day))
+                    .map((ps) => ({ ...ps, meeting: meetingForDay(ps.section, day) ?? ps.section.meetings?.[0] }))
                 );
                 
                 // Overlap-aware column assignment.
@@ -390,29 +393,33 @@ function WeekGrid({ schedule, colorMap, previewSections, onAddPreviewSection, pr
                   let qi = 0;
                   while (qi < queue.length) {
                     const cur = queue[qi++];
-                    const aS = timeToMinutes(previewGroupsForDay[cur][0].section.startTime);
-                    const aE = timeToMinutes(previewGroupsForDay[cur][0].section.endTime);
+                    const aM = previewGroupsForDay[cur][0].meeting ?? previewGroupsForDay[cur][0].section.meetings?.[0] ?? {};
+                    const aS = timeToMinutes(aM.startTime);
+                    const aE = timeToMinutes(aM.endTime);
                     for (let j = 0; j < n; j++) {
                       if (clusterOf[j] !== -1) continue;
-                      const bS = timeToMinutes(previewGroupsForDay[j][0].section.startTime);
-                      const bE = timeToMinutes(previewGroupsForDay[j][0].section.endTime);
+                      const bM = previewGroupsForDay[j][0].meeting ?? previewGroupsForDay[j][0].section.meetings?.[0] ?? {};
+                      const bS = timeToMinutes(bM.startTime);
+                      const bE = timeToMinutes(bM.endTime);
                       if (aS < bE && bS < aE) { clusterOf[j] = clusterCount; queue.push(j); }
                     }
                   }
                   clusterCount++;
                 }
                 const sortedIdxs = Array.from({ length: n }, (_, i) => i)
-                  .sort((a, b) =>
-                    timeToMinutes(previewGroupsForDay[a][0].section.startTime) -
-                    timeToMinutes(previewGroupsForDay[b][0].section.startTime)
-                  );
+                  .sort((a, b) => {
+                    const mA = previewGroupsForDay[a][0].meeting ?? previewGroupsForDay[a][0].section.meetings?.[0] ?? {};
+                    const mB = previewGroupsForDay[b][0].meeting ?? previewGroupsForDay[b][0].section.meetings?.[0] ?? {};
+                    return timeToMinutes(mA.startTime) - timeToMinutes(mB.startTime);
+                  });
                 const colOf = new Array(n).fill(0);
                 const clusterColEnds = {};
                 for (const i of sortedIdxs) {
                   const c = clusterOf[i];
                   if (!clusterColEnds[c]) clusterColEnds[c] = [];
-                  const s = timeToMinutes(previewGroupsForDay[i][0].section.startTime);
-                  const e = timeToMinutes(previewGroupsForDay[i][0].section.endTime);
+                  const mI = previewGroupsForDay[i][0].meeting ?? previewGroupsForDay[i][0].section.meetings?.[0] ?? {};
+                  const s = timeToMinutes(mI.startTime);
+                  const e = timeToMinutes(mI.endTime);
                   let col = clusterColEnds[c].findIndex(et => et <= s);
                   if (col === -1) { col = clusterColEnds[c].length; clusterColEnds[c].push(0); }
                   clusterColEnds[c][col] = e;
@@ -421,13 +428,14 @@ function WeekGrid({ schedule, colorMap, previewSections, onAddPreviewSection, pr
 
                 return previewGroupsForDay.map((group, groupIdx) => {
                   const rep = group[0];
+                  const repMeeting = rep.meeting ?? rep.section.meetings?.[0] ?? {};
                   const color = colorMap[rep.courseId] ?? SECTION_COLORS[0];
-                  const top = ((timeToMinutes(rep.section.startTime) - gridStart) / totalMinutes) * 100;
-                  const height = ((timeToMinutes(rep.section.endTime) - timeToMinutes(rep.section.startTime)) / totalMinutes) * 100;
+                  const top = ((timeToMinutes(repMeeting.startTime) - gridStart) / totalMinutes) * 100;
+                  const height = ((timeToMinutes(repMeeting.endTime) - timeToMinutes(repMeeting.startTime)) / totalMinutes) * 100;
                   const isSingle = group.length === 1;
 
                   // type is now part of the key so Lecture/DIS pickers are independent
-                  const pickerKey = `${rep.courseId}|${rep.section.type}|${rep.section.startTime}|${rep.section.endTime}|${day}`;
+                  const pickerKey = `${rep.courseId}|${rep.section.type}|${repMeeting.startTime}|${repMeeting.endTime}|${day}`;
                   const isPickerOpen = openPickerKey === pickerKey;
 
                   // Column position within this overlap cluster
@@ -495,7 +503,7 @@ function WeekGrid({ schedule, colorMap, previewSections, onAddPreviewSection, pr
                               {rep.section.type} {rep.section.sectionId}
                             </div>
                             <div style={{ fontSize: 9, color: color.border, opacity: 0.45 }}>
-                              {rep.section.startTime}–{rep.section.endTime}
+                              {repMeeting.startTime}–{repMeeting.endTime}
                             </div>
                             <div style={{ fontSize: 8, color: color.border, opacity: 0.5, marginTop: 1, fontStyle: "italic" }}>
                               Click to add
@@ -504,7 +512,7 @@ function WeekGrid({ schedule, colorMap, previewSections, onAddPreviewSection, pr
                         ) : (
                           <>
                             <div style={{ fontSize: 9, color: color.border, opacity: 0.55, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                              {rep.section.type} · {rep.section.startTime}–{rep.section.endTime}
+                              {rep.section.type} · {repMeeting.startTime}–{repMeeting.endTime}
                             </div>
                             <div style={{ fontSize: 8, color: color.border, opacity: 0.5, marginTop: 1, fontStyle: "italic" }}>
                               {isPickerOpen ? "Pick a section ↓" : "Click to choose"}
@@ -554,7 +562,7 @@ function WeekGrid({ schedule, colorMap, previewSections, onAddPreviewSection, pr
                               <div style={{ fontSize: 11, fontWeight: 600, color: "#f3f4f6" }}>
                                 {ps.section.type} {ps.section.sectionId}
                               </div>
-                              <div style={{ fontSize: 10, color: "#9ca3af" }}>{ps.section.room}</div>
+                              <div style={{ fontSize: 10, color: "#9ca3af" }}>{(ps.meeting ?? ps.section.meetings?.[0])?.room}</div>
                             </div>
                           ))}
                         </div>
