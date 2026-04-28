@@ -70,25 +70,41 @@ function fmtHour(h) {
   return `${h} AM`;
 }
 
+// Returns the meeting object from a section that falls on the given day, or null.
+function meetingForDay(section, day) {
+  return (section.meetings ?? []).find((m) => m.days.includes(day)) ?? null;
+}
+
+// Returns all days a section meets across all its meetings.
+function allDaysForSection(section) {
+  return (section.meetings ?? []).flatMap((m) => m.days);
+}
+
 function hasConflict(existing, newSection) {
   for (const { section } of existing) {
-    const sharedDay = section.days.some((d) => newSection.days.includes(d));
-    if (!sharedDay) continue;
-    const aStart = timeToMinutes(section.startTime);
-    const aEnd = timeToMinutes(section.endTime);
-    const bStart = timeToMinutes(newSection.startTime);
-    const bEnd = timeToMinutes(newSection.endTime);
-    if (aStart < bEnd && bStart < aEnd) return true;
+    for (const aMeeting of (section.meetings ?? [])) {
+      for (const bMeeting of (newSection.meetings ?? [])) {
+        const sharedDay = aMeeting.days.some((d) => bMeeting.days.includes(d));
+        if (!sharedDay) continue;
+        const aStart = timeToMinutes(aMeeting.startTime);
+        const aEnd   = timeToMinutes(aMeeting.endTime);
+        const bStart = timeToMinutes(bMeeting.startTime);
+        const bEnd   = timeToMinutes(bMeeting.endTime);
+        if (aStart < bEnd && bStart < aEnd) return true;
+      }
+    }
   }
   return false;
 }
 
 // Group preview sections that share the same (courseId, startTime, endTime) into one slot.
+// Uses the first meeting's times as the grouping key for that day.
 // Returns an array of arrays – each inner array is a group of preview entries.
-function groupPreviewsBySlot(previewsForDay) {
+function groupPreviewsBySlot(previewsForDay, day) {
   const groups = {};
   for (const ps of previewsForDay) {
-    const key = `${ps.courseId}|${ps.section.startTime}|${ps.section.endTime}`;
+    const m = meetingForDay(ps.section, day);
+    const key = `${ps.courseId}|${m?.startTime ?? ""}|${m?.endTime ?? ""}`;
     if (!groups[key]) groups[key] = [];
     groups[key].push(ps);
   }
@@ -215,7 +231,7 @@ function CourseCard({ course, selectedSections, colorMap, onToggleSection, previ
                   {sec.type} {sec.sectionId}
                 </span>
                 <div style={{ fontSize: 11, color: isDisabled ? "#d1d5db" : "#6b7280", marginTop: 1 }}>
-                  {sec.days.join("/")} · {sec.startTime}–{sec.endTime} · {sec.room}
+                  {(sec.meetings ?? []).map(m => `${m.days.join("/")} ${m.startTime}–${m.endTime} · ${m.room}`).join(" | ")}
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -277,12 +293,13 @@ function WeekGrid({ schedule, colorMap, previewSections, onAddPreviewSection, pr
                 }} />
               ))}
               {schedule
-                .filter(({ section }) => section.days.includes(day))
+                .filter(({ section }) => allDaysForSection(section).includes(day))
                 .map((entry) => {
                   const { courseId, courseCode, courseName, credits, instructor, college, section } = entry;
                   const color = colorMap[courseId] ?? SECTION_COLORS[0];
-                  const top = ((timeToMinutes(section.startTime) - gridStart) / totalMinutes) * 100;
-                  const height = ((timeToMinutes(section.endTime) - timeToMinutes(section.startTime)) / totalMinutes) * 100;
+                  const meeting = meetingForDay(section, day) ?? (section.meetings?.[0] ?? {});
+                  const top = ((timeToMinutes(meeting.startTime) - gridStart) / totalMinutes) * 100;
+                  const height = ((timeToMinutes(meeting.endTime) - timeToMinutes(meeting.startTime)) / totalMinutes) * 100;
                   const isSelected = selectedBlock?.courseId === courseId && selectedBlock?.sectionId === section.sectionId && selectedBlock?.day === day;
                   const isHighlighted = selectedBlock?.courseId === courseId && selectedBlock?.sectionId === section.sectionId;
                   const isPreviewTarget = previewCourseId === courseId;
@@ -315,7 +332,7 @@ function WeekGrid({ schedule, colorMap, previewSections, onAddPreviewSection, pr
                         )}
                       </div>
                       <div style={{ fontSize: 9, color: color.text, opacity: 0.75 }}>{section.type}</div>
-                      <div style={{ fontSize: 9, color: color.text, opacity: 0.65 }}>{section.startTime}–{section.endTime}</div>
+                      <div style={{ fontSize: 9, color: color.text, opacity: 0.65 }}>{meeting.startTime}–{meeting.endTime}</div>
 
                       {/* Detail popup */}
                       {isSelected && (
@@ -347,15 +364,15 @@ function WeekGrid({ schedule, colorMap, previewSections, onAddPreviewSection, pr
                             </div>
                             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
                               <span style={{ color: "#9ca3af" }}>Time</span>
-                              <span style={{ color: "#374151", fontWeight: 500 }}>{section.startTime} – {section.endTime}</span>
+                              <span style={{ color: "#374151", fontWeight: 500 }}>{meeting.startTime} – {meeting.endTime}</span>
                             </div>
                             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
                               <span style={{ color: "#9ca3af" }}>Days</span>
-                              <span style={{ color: "#374151", fontWeight: 500 }}>{section.days.join(", ")}</span>
+                              <span style={{ color: "#374151", fontWeight: 500 }}>{meeting.days?.join(", ")}</span>
                             </div>
                             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
                               <span style={{ color: "#9ca3af" }}>Room</span>
-                              <span style={{ color: "#374151", fontWeight: 500 }}>{section.room}</span>
+                              <span style={{ color: "#374151", fontWeight: 500 }}>{meeting.room}</span>
                             </div>
                             <div style={{ height: 1, background: "#f3f4f6", margin: "2px 0" }} />
                             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
@@ -378,14 +395,16 @@ function WeekGrid({ schedule, colorMap, previewSections, onAddPreviewSection, pr
                 })}
               {/* Preview / ghost blocks — grouped by time slot to avoid overlap */}
               {groupPreviewsBySlot(
-                (previewSections ?? []).filter((ps) => ps.section.days.includes(day))
+                (previewSections ?? []).filter((ps) => allDaysForSection(ps.section).includes(day)),
+                day
               ).map((group) => {
                 const rep = group[0]; // representative entry for positioning
                 const color = colorMap[rep.courseId] ?? SECTION_COLORS[0];
-                const top = ((timeToMinutes(rep.section.startTime) - gridStart) / totalMinutes) * 100;
-                const height = ((timeToMinutes(rep.section.endTime) - timeToMinutes(rep.section.startTime)) / totalMinutes) * 100;
+                const repMeeting = meetingForDay(rep.section, day) ?? (rep.section.meetings?.[0] ?? {});
+                const top = ((timeToMinutes(repMeeting.startTime) - gridStart) / totalMinutes) * 100;
+                const height = ((timeToMinutes(repMeeting.endTime) - timeToMinutes(repMeeting.startTime)) / totalMinutes) * 100;
                 const isSingle = group.length === 1;
-                const pickerKey = `${rep.courseId}|${rep.section.startTime}|${rep.section.endTime}|${day}`;
+                const pickerKey = `${rep.courseId}|${repMeeting.startTime}|${repMeeting.endTime}|${day}`;
                 const isPickerOpen = openPickerKey === pickerKey;
 
                 return (
@@ -423,12 +442,12 @@ function WeekGrid({ schedule, colorMap, previewSections, onAddPreviewSection, pr
                     {isSingle ? (
                       <>
                         <div style={{ fontSize: 9, color: color.border, opacity: 0.55 }}>{rep.section.type} {rep.section.sectionId}</div>
-                        <div style={{ fontSize: 9, color: color.border, opacity: 0.45 }}>{rep.section.startTime}–{rep.section.endTime}</div>
+                        <div style={{ fontSize: 9, color: color.border, opacity: 0.45 }}>{repMeeting.startTime}–{repMeeting.endTime}</div>
                         <div style={{ fontSize: 8, color: color.border, opacity: 0.5, marginTop: 1, fontStyle: "italic" }}>Click to add</div>
                       </>
                     ) : (
                       <>
-                        <div style={{ fontSize: 9, color: color.border, opacity: 0.55 }}>{rep.section.type} · {rep.section.startTime}–{rep.section.endTime}</div>
+                        <div style={{ fontSize: 9, color: color.border, opacity: 0.55 }}>{rep.section.type} · {repMeeting.startTime}–{repMeeting.endTime}</div>
                         <div style={{ fontSize: 8, color: color.border, opacity: 0.5, marginTop: 1, fontStyle: "italic" }}>
                           {isPickerOpen ? "Pick a section ↓" : "Click to choose"}
                         </div>
@@ -467,7 +486,7 @@ function WeekGrid({ schedule, colorMap, previewSections, onAddPreviewSection, pr
                             onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                           >
                             <div style={{ fontSize: 11, fontWeight: 600, color: "#f3f4f6" }}>{ps.section.type} {ps.section.sectionId}</div>
-                            <div style={{ fontSize: 10, color: "#9ca3af" }}>{ps.section.room}</div>
+                            <div style={{ fontSize: 10, color: "#9ca3af" }}>{(meetingForDay(ps.section, day) ?? ps.section.meetings?.[0])?.room}</div>
                           </div>
                         ))}
                       </div>
