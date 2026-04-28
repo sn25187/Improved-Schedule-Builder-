@@ -1,52 +1,37 @@
 import { useState, useMemo, useEffect } from "react";
 
-// ─── HUB Requirement Definitions ──────────────────────────────────────────────
-// Complete BU HUB curriculum map. Each entry has:
-//   code     → the short code used in crse_attr_value (e.g. "HUB-CRT")
-//   label    → the full BU HUB requirement name
-//   category → the HUB pillar this belongs to (for grouping in the UI)
-//   color    → a visual accent for this category
 const HUB_REQUIREMENTS = [
-  // Philosophical, Aesthetic, and Historical Interpretation        
   { code: "HUB-PLM", label: "Philosophical Inquiry and Life's Meanings", category: "Philosophical, Aesthetic & Historical Interpretation", color: "#3b82f6" },
   { code: "HUB-AEX", label: "Aesthetic Exploration", category: "Philosophical, Aesthetic & Historical Interpretation", color: "#3b82f6" },
   { code: "HUB-HCO", label: "Historical Consciousness", category: "Philosophical, Aesthetic & Historical Interpretation", color: "#3b82f6" },
-  // Scientific & Social Inquiry
   { code: "HUB-SI1", label: "Scientific Inquiry I", category: "Scientific & Social Inquiry", color: "#22c55e" },
   { code: "HUB-SI2", label: "Scientific Inquiry II", category: "Scientific & Social Inquiry", color: "#22c55e" },
   { code: "HUB-SO1", label: "Social Inquiry I", category: "Scientific & Social Inquiry", color: "#22c55e" },
   { code: "HUB-SO2", label: "Social Inquiry II", category: "Scientific & Social Inquiry", color: "#22c55e" },
-  // Quantitative Reasoning
   { code: "HUB-QR1", label: "Quantitative Reasoning I", category: "Quantitative Reasoning", color: "#f59e0b" },
   { code: "HUB-QR2", label: "Quantitative Reasoning II", category: "Quantitative Reasoning", color: "#f59e0b" },
-  // Diversity, Civic Engagement & Global Citizenship
   { code: "HUB-IIC", label: "The Individual in Community", category: "Diversity, Civic Engagement & Global Citizenship", color: "#ec4899" },
   { code: "HUB-GCI", label: "Global Citizenship & Intercultural Literacy", category: "Diversity, Civic Engagement & Global Citizenship", color: "#ec4899" },
   { code: "HUB-ETR", label: "Ethical Reasoning", category: "Diversity, Civic Engagement & Global Citizenship", color: "#ec4899" },
-  // Communication
   { code: "HUB-FYW", label: "First-Year Writing Seminar", category: "Communication", color: "#8b5cf6" },
   { code: "HUB-WRI", label: "Writing, Research, and Inquiry", category: "Communication", color: "#8b5cf6" },
   { code: "HUB-WIN", label: "Writing-Intensive Course", category: "Communication", color: "#8b5cf6" },
   { code: "HUB-OSC", label: "Oral and/or Signed Communication", category: "Communication", color: "#8b5cf6" },
   { code: "HUB-DME", label: "Digital/Multimedia Expression", category: "Communication", color: "#8b5cf6" },
-  // Intellectual Toolkit
   { code: "HUB-CTR", label: "Critical Thinking", category: "Intellectual Toolkit", color: "#6366f1" },
   { code: "HUB-RIL", label: "Research and Information Literacy", category: "Intellectual Toolkit", color: "#6366f1" },
   { code: "HUB-TWC", label: "Teamwork/Collaboration", category: "Intellectual Toolkit", color: "#6366f1" },
   { code: "HUB-CRI", label: "Creativity/Innovation", category: "Intellectual Toolkit", color: "#6366f1" },
 ];
 
-// Build a quick lookup map: code → full HUB object
 const HUB_MAP = Object.fromEntries(HUB_REQUIREMENTS.map((h) => [h.code, h]));
 
-// Group HUB requirements by category for the selector UI
 const HUB_BY_CATEGORY = HUB_REQUIREMENTS.reduce((acc, hub) => {
   if (!acc[hub.category]) acc[hub.category] = [];
   acc[hub.category].push(hub);
   return acc;
 }, {});
 
-// ─── Constants ────────────────────────────────────────────────────────────────
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 const HOURS = Array.from({ length: 16 }, (_, i) => i + 7);
 const SECTION_COLORS = [
@@ -58,7 +43,6 @@ const SECTION_COLORS = [
   { bg: "#ffedd5", border: "#f97316", text: "#9a3412" },
 ];
 
-// ─── Utility Functions ────────────────────────────────────────────────────────
 function timeToMinutes(t) {
   const [h, m] = t.split(":").map(Number);
   return h * 60 + m;
@@ -97,23 +81,21 @@ function hasConflict(existing, newSection) {
   return false;
 }
 
-// Group preview sections that share the same (courseId, startTime, endTime) into one slot.
-// Uses the first meeting's times as the grouping key for that day.
-// Returns an array of arrays – each inner array is a group of preview entries.
-function groupPreviewsBySlot(previewsForDay, day) {
+// ─── CHANGE 1 ─────────────────────────────────────────────────────────────────
+// Previously grouped by (courseId | startTime | endTime), which merged Lecture
+// and Discussion blocks at the same time into one dropdown. Now the key
+// includes section.type, so each type gets its own group and its own calendar
+// block. Same-time groups of different types are then rendered side-by-side.
+function groupPreviewsBySlot(previewsForDay) {
   const groups = {};
   for (const ps of previewsForDay) {
-    const m = meetingForDay(ps.section, day);
-    const key = `${ps.courseId}|${m?.startTime ?? ""}|${m?.endTime ?? ""}`;
+    const key = `${ps.courseId}|${ps.section.type}|${ps.section.startTime}|${ps.section.endTime}`;
     if (!groups[key]) groups[key] = [];
     groups[key].push(ps);
   }
   return Object.values(groups);
 }
 
-// ─── NavBar Component ─────────────────────────────────────────────────────────
-// Renders the top navigation bar with BU branding and a page-switcher dropdown.
-// `page` is the current active page; `onPageChange` is called when the user picks a new one.
 function NavBar({ page, onPageChange }) {
   return (
     <div style={{
@@ -121,7 +103,6 @@ function NavBar({ page, onPageChange }) {
       display: "flex", alignItems: "center", padding: "0 16px", gap: 12,
       flexShrink: 0, zIndex: 10,
     }}>
-      {/* BU badge */}
       <div style={{
         background: "#cc0000", color: "#fff", borderRadius: 6,
         width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center",
@@ -130,13 +111,7 @@ function NavBar({ page, onPageChange }) {
       <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>Schedule Builder
         <div style={{ fontSize: 11, fontWeight: 500, color: "#575656" }}>Fall 2026</div>
       </div>
-
-      {/* Divider */}
       <div style={{ width: 1, height: 20, background: "#e5e7eb" }} />
-
-      {/* Page selector dropdown.
-          In React, <select> is a controlled input — its value is tied to `page` state,
-          and onChange fires whenever the user picks a different option. */}
       <select
         value={page}
         onChange={(e) => onPageChange(e.target.value)}
@@ -152,13 +127,11 @@ function NavBar({ page, onPageChange }) {
   );
 }
 
-// ─── CourseCard Component ─────────────────────────────────────────────────────
 function CourseCard({ course, selectedSections, colorMap, onToggleSection, previewCourseId, onPreviewCourse }) {
   const color = colorMap[course.id];
   const selected = selectedSections[course.id] ?? [];
   const isAnySelected = selected.length > 0;
 
-  // Check for incomplete selection: which section types are covered
   const allTypes = new Set(course.sections.map((s) => s.type));
   const selectedTypes = new Set(
     course.sections.filter((s) => selected.includes(s.sectionId)).map((s) => s.type)
@@ -174,10 +147,8 @@ function CourseCard({ course, selectedSections, colorMap, onToggleSection, previ
       transition: "border-color 0.15s, box-shadow 0.15s",
       boxShadow: isPreviewing ? `0 0 0 2px ${(color?.border ?? "#6366f1")}33` : "none",
     }}>
-      {/* Clickable course banner for preview */}
       <div
         onClick={() => {
-          // Don't allow toggling preview on when all section types are already covered
           if (allTypesCovered && !isPreviewing) return;
           onPreviewCourse(isPreviewing ? null : course.id);
         }}
@@ -207,9 +178,7 @@ function CourseCard({ course, selectedSections, colorMap, onToggleSection, previ
       <div style={{ borderTop: "1px solid #f3f4f6" }}>
         {course.sections.map((sec) => {
           const isSelected = selected.includes(sec.sectionId);
-          // Show warning if this section's type is missing AND at least one other type is selected
           const isMissing = isAnySelected && !selectedTypes.has(sec.type) && !isSelected;
-          // Disable if another section of the same type is already selected (but not this one)
           const isDisabled = !isSelected && selectedTypes.has(sec.type);
           return (
             <button
@@ -256,13 +225,12 @@ function CourseCard({ course, selectedSections, colorMap, onToggleSection, previ
   );
 }
 
-// ─── WeekGrid Component ───────────────────────────────────────────────────────
 function WeekGrid({ schedule, colorMap, previewSections, onAddPreviewSection, previewCourseId, onRemovePreviewSection }) {
   const gridStart = 7 * 60;
   const gridEnd = 21 * 60;
   const totalMinutes = gridEnd - gridStart;
-  const [selectedBlock, setSelectedBlock] = useState(null); // { courseId, sectionId, day }
-  const [openPickerKey, setOpenPickerKey] = useState(null); // key string for the currently-open section picker
+  const [selectedBlock, setSelectedBlock] = useState(null);
+  const [openPickerKey, setOpenPickerKey] = useState(null);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", userSelect: "none" }}>
@@ -334,7 +302,6 @@ function WeekGrid({ schedule, colorMap, previewSections, onAddPreviewSection, pr
                       <div style={{ fontSize: 9, color: color.text, opacity: 0.75 }}>{section.type}</div>
                       <div style={{ fontSize: 9, color: color.text, opacity: 0.65 }}>{meeting.startTime}–{meeting.endTime}</div>
 
-                      {/* Detail popup */}
                       {isSelected && (
                         <div onClick={(e) => e.stopPropagation()} style={{
                           position: "absolute", top: "100%", left: 0, marginTop: 4,
@@ -342,7 +309,6 @@ function WeekGrid({ schedule, colorMap, previewSections, onAddPreviewSection, pr
                           border: "1px solid #e5e7eb", boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
                           padding: "12px 14px", zIndex: 30,
                         }}>
-                          {/* Close button */}
                           <button
                             onClick={() => setSelectedBlock(null)}
                             style={{
@@ -351,12 +317,8 @@ function WeekGrid({ schedule, colorMap, previewSections, onAddPreviewSection, pr
                               fontSize: 14, color: "#9ca3af", lineHeight: 1,
                             }}
                           >×</button>
-
-                          {/* Course title */}
                           <div style={{ fontSize: 13, fontWeight: 700, color: "#111827", marginBottom: 2 }}>{courseCode}</div>
                           <div style={{ fontSize: 11, color: "#374151", marginBottom: 8, lineHeight: 1.4 }}>{courseName}</div>
-
-                          {/* Detail rows */}
                           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
                               <span style={{ color: "#9ca3af" }}>Section</span>
@@ -393,112 +355,218 @@ function WeekGrid({ schedule, colorMap, previewSections, onAddPreviewSection, pr
                     </div>
                   );
                 })}
-              {/* Preview / ghost blocks — grouped by time slot to avoid overlap */}
-              {groupPreviewsBySlot(
-                (previewSections ?? []).filter((ps) => allDaysForSection(ps.section).includes(day)),
-                day
-              ).map((group) => {
-                const rep = group[0]; // representative entry for positioning
-                const color = colorMap[rep.courseId] ?? SECTION_COLORS[0];
-                const repMeeting = meetingForDay(rep.section, day) ?? (rep.section.meetings?.[0] ?? {});
-                const top = ((timeToMinutes(repMeeting.startTime) - gridStart) / totalMinutes) * 100;
-                const height = ((timeToMinutes(repMeeting.endTime) - timeToMinutes(repMeeting.startTime)) / totalMinutes) * 100;
-                const isSingle = group.length === 1;
-                const pickerKey = `${rep.courseId}|${repMeeting.startTime}|${repMeeting.endTime}|${day}`;
-                const isPickerOpen = openPickerKey === pickerKey;
 
-                return (
-                  <div key={`preview-group-${pickerKey}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (isSingle) {
-                        onAddPreviewSection?.(rep);
-                      } else {
-                        setOpenPickerKey(isPickerOpen ? null : pickerKey);
-                      }
-                    }}
-                    style={{
-                      position: "absolute", top: `${top}%`, left: 2, right: 2, height: `${height}%`,
-                      background: `${color.border}12`, border: `2px dashed ${color.border}`,
-                      borderRadius: 6, padding: "3px 5px", boxSizing: "border-box",
-                      cursor: "pointer", zIndex: isPickerOpen ? 25 : 2,
-                      animation: "previewPulse 2s ease-in-out infinite",
-                      transition: "background 0.15s, border-color 0.15s",
-                      overflow: "visible",
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = `${color.border}28`; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = `${color.border}12`; }}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: color.border, opacity: 0.7, lineHeight: 1.3 }}>{rep.courseCode}</div>
-                      {!isSingle && (
-                        <span style={{
-                          fontSize: 9, fontWeight: 700, color: "#fff",
-                          background: color.border, borderRadius: 8,
-                          padding: "1px 6px", lineHeight: 1.4, flexShrink: 0,
-                        }}>{group.length}</span>
+              {/* ─── CHANGE 2 ──────────────────────────────────────────────────
+                  Preview / ghost blocks.
+                  
+                  We use an IIFE so we can pre-compute column positions before
+                  mapping. The logic:
+                    1. groupPreviewsBySlot now returns one group per (type, time),
+                       so Lecture and Discussion at the same time are separate.
+                    2. We bucket those groups by their (startTime, endTime) key.
+                       If N groups share the same slot, they each get 1/N of the
+                       column width, positioned left-to-right.
+                    3. left = calc(<col/N * 100>% + 2px)
+                       right = calc(<(N-col-1)/N * 100>% + 2px)
+                       When N=1, col=0 → left: 2px, right: 2px (unchanged).
+                  
+                  The pickerKey now includes section.type so two pickers at the
+                  same time slot but different types don't share state. ──────── */}
+              {(() => {
+                const previewGroupsForDay = groupPreviewsBySlot(
+                  (previewSections ?? []).filter((ps) => ps.section.days.includes(day))
+                );
+                
+                // Overlap-aware column assignment.
+                // Step 1 — BFS to cluster groups that overlap (directly or transitively).
+                // Step 2 — Greedy lowest-free-column assignment within each cluster.
+                const n = previewGroupsForDay.length;
+                const clusterOf = new Array(n).fill(-1);
+                let clusterCount = 0;
+                for (let i = 0; i < n; i++) {
+                  if (clusterOf[i] !== -1) continue;
+                  const queue = [i];
+                  clusterOf[i] = clusterCount;
+                  let qi = 0;
+                  while (qi < queue.length) {
+                    const cur = queue[qi++];
+                    const aS = timeToMinutes(previewGroupsForDay[cur][0].section.startTime);
+                    const aE = timeToMinutes(previewGroupsForDay[cur][0].section.endTime);
+                    for (let j = 0; j < n; j++) {
+                      if (clusterOf[j] !== -1) continue;
+                      const bS = timeToMinutes(previewGroupsForDay[j][0].section.startTime);
+                      const bE = timeToMinutes(previewGroupsForDay[j][0].section.endTime);
+                      if (aS < bE && bS < aE) { clusterOf[j] = clusterCount; queue.push(j); }
+                    }
+                  }
+                  clusterCount++;
+                }
+                const sortedIdxs = Array.from({ length: n }, (_, i) => i)
+                  .sort((a, b) =>
+                    timeToMinutes(previewGroupsForDay[a][0].section.startTime) -
+                    timeToMinutes(previewGroupsForDay[b][0].section.startTime)
+                  );
+                const colOf = new Array(n).fill(0);
+                const clusterColEnds = {};
+                for (const i of sortedIdxs) {
+                  const c = clusterOf[i];
+                  if (!clusterColEnds[c]) clusterColEnds[c] = [];
+                  const s = timeToMinutes(previewGroupsForDay[i][0].section.startTime);
+                  const e = timeToMinutes(previewGroupsForDay[i][0].section.endTime);
+                  let col = clusterColEnds[c].findIndex(et => et <= s);
+                  if (col === -1) { col = clusterColEnds[c].length; clusterColEnds[c].push(0); }
+                  clusterColEnds[c][col] = e;
+                  colOf[i] = col;
+                }
+
+                return previewGroupsForDay.map((group, groupIdx) => {
+                  const rep = group[0];
+                  const color = colorMap[rep.courseId] ?? SECTION_COLORS[0];
+                  const top = ((timeToMinutes(rep.section.startTime) - gridStart) / totalMinutes) * 100;
+                  const height = ((timeToMinutes(rep.section.endTime) - timeToMinutes(rep.section.startTime)) / totalMinutes) * 100;
+                  const isSingle = group.length === 1;
+
+                  // type is now part of the key so Lecture/DIS pickers are independent
+                  const pickerKey = `${rep.courseId}|${rep.section.type}|${rep.section.startTime}|${rep.section.endTime}|${day}`;
+                  const isPickerOpen = openPickerKey === pickerKey;
+
+                  // Column position within this overlap cluster
+                  const col = colOf[groupIdx];
+                  const totalCols = clusterColEnds[clusterOf[groupIdx]].length;
+
+                  // left / right expressed as calc() strings so they work at any column width.
+                  // With totalCols=1, col=0: left="calc(0% + 2px)", right="calc(0% + 2px)" = old behaviour.
+                  // With totalCols=2, col=0: left="calc(0% + 2px)", right="calc(50% + 2px)" → left half.
+                  // With totalCols=2, col=1: left="calc(50% + 2px)", right="calc(0% + 2px)" → right half.
+                  const leftStyle  = `calc(${(col / totalCols) * 100}% + 2px)`;
+                  const rightStyle = `calc(${((totalCols - col - 1) / totalCols) * 100}% + 2px)`;
+
+                  return (
+                    <div
+                      key={`preview-group-${pickerKey}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (isSingle) {
+                          onAddPreviewSection?.(rep);
+                        } else {
+                          setOpenPickerKey(isPickerOpen ? null : pickerKey);
+                        }
+                      }}
+                      style={{
+                        position: "absolute",
+                        top: `${top}%`,
+                        left: leftStyle,
+                        right: rightStyle,
+                        height: `${height}%`,
+                        background: `${color.border}12`,
+                        border: `2px dashed ${color.border}`,
+                        borderRadius: 6,
+                        padding: "3px 5px",
+                        boxSizing: "border-box",
+                        cursor: "pointer",
+                        zIndex: isPickerOpen ? 25 : 2,
+                        animation: "previewPulse 2s ease-in-out infinite",
+                        transition: "background 0.15s, border-color 0.15s",
+                        overflow: "visible",
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = `${color.border}28`; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = `${color.border}12`; }}
+                    >
+                      {/* Text content — clipped so it never pushes the block wider */}
+                      <div style={{ overflow: "hidden" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <div style={{
+                            fontSize: 10, fontWeight: 700, color: color.border, opacity: 0.7,
+                            lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                          }}>
+                            {rep.courseCode}
+                          </div>
+                          {!isSingle && (
+                            <span style={{
+                              fontSize: 9, fontWeight: 700, color: "#fff",
+                              background: color.border, borderRadius: 8,
+                              padding: "1px 6px", lineHeight: 1.4, flexShrink: 0,
+                            }}>{group.length}</span>
+                          )}
+                        </div>
+                        {isSingle ? (
+                          <>
+                            <div style={{ fontSize: 9, color: color.border, opacity: 0.55, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {rep.section.type} {rep.section.sectionId}
+                            </div>
+                            <div style={{ fontSize: 9, color: color.border, opacity: 0.45 }}>
+                              {rep.section.startTime}–{rep.section.endTime}
+                            </div>
+                            <div style={{ fontSize: 8, color: color.border, opacity: 0.5, marginTop: 1, fontStyle: "italic" }}>
+                              Click to add
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div style={{ fontSize: 9, color: color.border, opacity: 0.55, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {rep.section.type} · {rep.section.startTime}–{rep.section.endTime}
+                            </div>
+                            <div style={{ fontSize: 8, color: color.border, opacity: 0.5, marginTop: 1, fontStyle: "italic" }}>
+                              {isPickerOpen ? "Pick a section ↓" : "Click to choose"}
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Section Picker Dropdown — minWidth so it stays readable when the
+                          block is narrow (e.g., one half of a split column). */}
+                      {isPickerOpen && !isSingle && (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            position: "absolute", top: "100%", left: 0,
+                            minWidth: 160,
+                            marginTop: 4, background: "#1f2937", borderRadius: 8,
+                            border: `1.5px solid ${color.border}`,
+                            boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
+                            maxHeight: 160, overflowY: "auto", zIndex: 30,
+                          }}
+                          className="section-picker-scroll"
+                        >
+                          <div style={{
+                            padding: "6px 8px 4px", fontSize: 9, fontWeight: 700,
+                            color: "#9ca3af", textTransform: "uppercase",
+                            letterSpacing: "0.05em", borderBottom: "1px solid #374151",
+                          }}>
+                            {group.length} sections available
+                          </div>
+                          {group.map((ps) => (
+                            <div
+                              key={ps.section.sectionId}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onAddPreviewSection?.(ps);
+                                setOpenPickerKey(null);
+                              }}
+                              style={{
+                                padding: "6px 8px", cursor: "pointer",
+                                borderBottom: "1px solid #374151",
+                                transition: "background 0.1s",
+                              }}
+                              onMouseEnter={(e) => { e.currentTarget.style.background = "#374151"; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                            >
+                              <div style={{ fontSize: 11, fontWeight: 600, color: "#f3f4f6" }}>
+                                {ps.section.type} {ps.section.sectionId}
+                              </div>
+                              <div style={{ fontSize: 10, color: "#9ca3af" }}>{ps.section.room}</div>
+                            </div>
+                          ))}
+                        </div>
                       )}
                     </div>
-                    {isSingle ? (
-                      <>
-                        <div style={{ fontSize: 9, color: color.border, opacity: 0.55 }}>{rep.section.type} {rep.section.sectionId}</div>
-                        <div style={{ fontSize: 9, color: color.border, opacity: 0.45 }}>{repMeeting.startTime}–{repMeeting.endTime}</div>
-                        <div style={{ fontSize: 8, color: color.border, opacity: 0.5, marginTop: 1, fontStyle: "italic" }}>Click to add</div>
-                      </>
-                    ) : (
-                      <>
-                        <div style={{ fontSize: 9, color: color.border, opacity: 0.55 }}>{rep.section.type} · {repMeeting.startTime}–{repMeeting.endTime}</div>
-                        <div style={{ fontSize: 8, color: color.border, opacity: 0.5, marginTop: 1, fontStyle: "italic" }}>
-                          {isPickerOpen ? "Pick a section ↓" : "Click to choose"}
-                        </div>
-                      </>
-                    )}
-
-                    {/* Section Picker Dropdown */}
-                    {isPickerOpen && !isSingle && (
-                      <div
-                        onClick={(e) => e.stopPropagation()}
-                        style={{
-                          position: "absolute", top: "100%", left: 0, right: 0,
-                          marginTop: 4, background: "#1f2937", borderRadius: 8,
-                          border: `1.5px solid ${color.border}`, boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
-                          maxHeight: 160, overflowY: "auto", zIndex: 30,
-                        }}
-                        className="section-picker-scroll"
-                      >
-                        <div style={{ padding: "6px 8px 4px", fontSize: 9, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "1px solid #374151" }}>
-                          {group.length} sections available
-                        </div>
-                        {group.map((ps) => (
-                          <div
-                            key={ps.section.sectionId}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onAddPreviewSection?.(ps);
-                              setOpenPickerKey(null);
-                            }}
-                            style={{
-                              padding: "6px 8px", cursor: "pointer",
-                              borderBottom: "1px solid #374151",
-                              transition: "background 0.1s",
-                            }}
-                            onMouseEnter={(e) => { e.currentTarget.style.background = "#374151"; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-                          >
-                            <div style={{ fontSize: 11, fontWeight: 600, color: "#f3f4f6" }}>{ps.section.type} {ps.section.sectionId}</div>
-                            <div style={{ fontSize: 10, color: "#9ca3af" }}>{(meetingForDay(ps.section, day) ?? ps.section.meetings?.[0])?.room}</div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                  );
+                });
+              })()}
             </div>
           ))}
         </div>
 
-        {/* Click on empty space to dismiss popup / picker */}
         {(selectedBlock || openPickerKey) && (
           <div
             onClick={() => { setSelectedBlock(null); setOpenPickerKey(null); }}
@@ -510,36 +578,38 @@ function WeekGrid({ schedule, colorMap, previewSections, onAddPreviewSection, pr
   );
 }
 
-// ─── SchedulePage Component ───────────────────────────────────────────────────
-// The original schedule builder, now extracted into its own component so the
-// main app can swap between this and the HUB finder page.
 function SchedulePage({ courses, allCourses, search, onSearchChange, loading }) {
   const [selectedSections, setSelectedSections] = useState({});
   const [conflicts, setConflicts] = useState([]);
   const [conflictFading, setConflictFading] = useState(false);
   const [showCreditInfo, setShowCreditInfo] = useState(false);
-  const [creditTooltip, setCreditTooltip] = useState(null); // "overload" | "overmax" | null
+  const [creditTooltip, setCreditTooltip] = useState(null);
   const [previewCourseId, setPreviewCourseId] = useState(null);
 
-  // Build preview sections: all sections from the previewed course that aren't
-  // already on the schedule AND whose type isn't already covered by a selection.
   const previewSections = useMemo(() => {
     if (!previewCourseId) return [];
     const course = courses.find((c) => c.id === previewCourseId);
     if (!course) return [];
     const alreadySelected = selectedSections[previewCourseId] ?? [];
-    // Determine which section types are already covered
     const coveredTypes = new Set(
       course.sections
         .filter((s) => alreadySelected.includes(s.sectionId))
         .map((s) => s.type)
     );
+    // Wrap already-selected sections in { section } so hasConflict() can consume them
+    const selectedEntries = course.sections
+      .filter((s) => alreadySelected.includes(s.sectionId))
+      .map((s) => ({ section: s }));
+
     return course.sections
-      .filter((sec) => !alreadySelected.includes(sec.sectionId) && !coveredTypes.has(sec.type))
+      .filter((sec) =>
+        !alreadySelected.includes(sec.sectionId) &&
+        !coveredTypes.has(sec.type) &&
+        !hasConflict(selectedEntries, sec)   // ← drop previews that clash with a picked section
+      )
       .map((sec) => ({ courseId: course.id, courseCode: course.code, section: sec }));
   }, [previewCourseId, courses, selectedSections]);
 
-  // Auto-clear preview when all section types are covered (one of each type selected)
   useEffect(() => {
     if (!previewCourseId) return;
     const course = courses.find((c) => c.id === previewCourseId);
@@ -555,7 +625,6 @@ function SchedulePage({ courses, allCourses, search, onSearchChange, loading }) 
     }
   }, [previewCourseId, selectedSections, courses]);
 
-  // Auto-dismiss conflict warnings: fade starts at 4s, removed at 5s
   useEffect(() => {
     if (conflicts.length === 0) return;
     setConflictFading(false);
@@ -564,8 +633,6 @@ function SchedulePage({ courses, allCourses, search, onSearchChange, loading }) 
     return () => { clearTimeout(fadeTimer); clearTimeout(clearTimer); };
   }, [conflicts]);
 
-  // Merge allCourses and search-result courses so we always have data for
-  // courses the user has interacted with (even if they later change the search).
   const knownCourses = useMemo(() => {
     const map = new Map();
     allCourses.forEach((c) => map.set(c.id, c));
@@ -608,7 +675,6 @@ function SchedulePage({ courses, allCourses, search, onSearchChange, loading }) 
       setSelectedSections((s) => ({ ...s, [course.id]: prev.filter((id) => id !== section.sectionId) }));
       setConflicts((c) => { const f = c.filter((msg) => !msg.startsWith(course.code)); return f.length === c.length ? c : f; });
     } else {
-      // Block if another section of the same type is already selected
       const sameTypeSelected = course.sections.find(
         (s) => s.sectionId !== section.sectionId && s.type === section.type && prev.includes(s.sectionId)
       );
@@ -635,7 +701,6 @@ function SchedulePage({ courses, allCourses, search, onSearchChange, loading }) 
 
   return (
     <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-      {/* ── Sidebar ── */}
       <div style={{
         width: 280, flexShrink: 0, display: "flex", flexDirection: "column",
         background: "#fff", borderRight: "1px solid #e5e7eb", overflowY: "hidden",
@@ -648,7 +713,7 @@ function SchedulePage({ courses, allCourses, search, onSearchChange, loading }) 
               width: "100%", boxSizing: "border-box", padding: "6px 10px",
               fontSize: 12, border: "1px solid #e5e7eb", borderRadius: 7,
               outline: "none", color: "#111827", background: "#f9fafb",
-              opacity: loading ? 0.6 : 1,         // ← dims while fetching
+              opacity: loading ? 0.6 : 1,
               transition: "opacity 0.2s",
             }}
           />
@@ -669,7 +734,6 @@ function SchedulePage({ courses, allCourses, search, onSearchChange, loading }) 
               </div>
             ))
           ) : search.trim().length < 2 ? (
-            // Don't render 2,947 cards — prompt user to search instead
             <div style={{ textAlign: "center", marginTop: 40, color: "#9ca3af" }}>
               <div style={{ fontSize: 24, marginBottom: 8 }}>🔍</div>
               <div style={{ fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 4 }}>Search for a course</div>
@@ -678,7 +742,6 @@ function SchedulePage({ courses, allCourses, search, onSearchChange, loading }) 
           ) : courses.length === 0 ? (
             <div style={{ fontSize: 12, color: "#9ca3af", textAlign: "center", marginTop: 24 }}>No courses match.</div>
           ) : (
-            // Cap at 50 results to keep the sidebar responsive
             courses.slice(0, 50).map((c) => (
               <CourseCard
                 key={c.id} course={c}
@@ -742,7 +805,6 @@ function SchedulePage({ courses, allCourses, search, onSearchChange, loading }) 
                         {creditTooltip === "overmax"
                           ? "Max credit per term exceeded."
                           : "Additional provisions may apply."}
-                        {/* Tooltip arrow */}
                         <span style={{
                           position: "absolute", top: "100%", left: "50%",
                           transform: "translateX(-50%)",
@@ -788,7 +850,6 @@ function SchedulePage({ courses, allCourses, search, onSearchChange, loading }) 
         </div>
       </div>
 
-      {/* ── Calendar ── */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <div style={{ padding: "14px 20px", borderBottom: "1px solid #e5e7eb", background: "#fff" }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>Weekly Schedule</div>
@@ -817,20 +878,10 @@ function SchedulePage({ courses, allCourses, search, onSearchChange, loading }) 
   );
 }
 
-// ─── HubFinderPage Component ──────────────────────────────────────────────────
-// Lets the user check off which HUB requirements they still need, then shows
-// every course that satisfies at least one of them — ranked by how many of the
-// user's selected requirements it covers.
 function HubFinderPage({ courses }) {
-  // Set of HUB codes the user has checked off as "I need this"
   const [neededHubs, setNeededHubs] = useState(new Set());
+  const [sortMode, setSortMode] = useState("match");
 
-  // Which sort mode the results list uses
-  const [sortMode, setSortMode] = useState("match"); // "match" | "name"
-
-  // Toggle a single HUB requirement on/off in the neededHubs set.
-  // Because Sets are mutable objects, we must create a *new* Set when updating
-  // state — React won't detect the change if we mutate the existing one.
   function toggleHub(code) {
     setNeededHubs((prev) => {
       const next = new Set(prev);
@@ -842,25 +893,20 @@ function HubFinderPage({ courses }) {
   function clearAll() { setNeededHubs(new Set()); }
   function selectAll() { setNeededHubs(new Set(HUB_REQUIREMENTS.map((h) => h.code))); }
 
-  // Compute results: for each course, count how many of the user's needed HUBs it covers.
-  // useMemo re-runs this only when neededHubs or courses changes.
   const results = useMemo(() => {
     if (neededHubs.size === 0) return [];
-
     return courses
       .map((course) => {
-        // Find which of the user's needed HUBs this course satisfies
         const matched = (course.hubCodes ?? []).filter((code) => neededHubs.has(code));
         return { course, matched, matchCount: matched.length };
       })
-      .filter((r) => r.matchCount > 0) // Only include courses that cover at least one needed HUB
+      .filter((r) => r.matchCount > 0)
       .sort((a, b) => {
-        if (sortMode === "match") return b.matchCount - a.matchCount; // Most matches first
-        return a.course.name.localeCompare(b.course.name);            // Alphabetical
+        if (sortMode === "match") return b.matchCount - a.matchCount;
+        return a.course.name.localeCompare(b.course.name);
       });
   }, [neededHubs, courses, sortMode]);
 
-  // How many of the user's needed HUBs are covered by at least one result course
   const coveredHubs = useMemo(() => {
     const covered = new Set();
     results.forEach((r) => r.matched.forEach((code) => covered.add(code)));
@@ -869,8 +915,6 @@ function HubFinderPage({ courses }) {
 
   return (
     <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-
-      {/* ── LEFT: HUB requirement selector ── */}
       <div style={{
         width: 300, flexShrink: 0, display: "flex", flexDirection: "column",
         background: "#fff", borderRight: "1px solid #e5e7eb", overflowY: "hidden",
@@ -893,14 +937,11 @@ function HubFinderPage({ courses }) {
           </div>
         </div>
 
-        {/* HUB checkboxes, grouped by category */}
         <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px" }}>
           {Object.entries(HUB_BY_CATEGORY).map(([category, hubs]) => {
-            // Pick the accent color from the first HUB in this category
             const catColor = hubs[0].color;
             return (
               <div key={category} style={{ marginBottom: 16 }}>
-                {/* Category header */}
                 <div style={{
                   fontSize: 10, fontWeight: 700, color: catColor,
                   textTransform: "uppercase", letterSpacing: "0.06em",
@@ -908,8 +949,6 @@ function HubFinderPage({ courses }) {
                 }}>
                   {category}
                 </div>
-
-                {/* Individual HUB checkboxes */}
                 {hubs.map((hub) => {
                   const checked = neededHubs.has(hub.code);
                   const covered = coveredHubs.has(hub.code);
@@ -920,10 +959,6 @@ function HubFinderPage({ courses }) {
                       background: checked ? (covered ? "#f0fdf4" : "#eff6ff") : "transparent",
                       cursor: "pointer", transition: "background 0.1s",
                     }}>
-                      {/*
-                        Standard HTML checkbox. In React, `checked` makes it a controlled
-                        input (React owns its state), and `onChange` fires when the user clicks.
-                      */}
                       <input
                         type="checkbox"
                         checked={checked}
@@ -934,7 +969,6 @@ function HubFinderPage({ courses }) {
                         <div style={{ fontSize: 12, color: "#111827", lineHeight: 1.3 }}>{hub.label}</div>
                         <div style={{ fontSize: 10, color: "#9ca3af", fontFamily: "monospace", marginTop: 1 }}>{hub.code}</div>
                       </div>
-                      {/* Green checkmark badge when this HUB is covered by results */}
                       {checked && covered && (
                         <span style={{
                           fontSize: 10, background: "#dcfce7", color: "#15803d",
@@ -949,7 +983,6 @@ function HubFinderPage({ courses }) {
           })}
         </div>
 
-        {/* Footer: summary of selection */}
         <div style={{ padding: "10px 16px", borderTop: "1px solid #f3f4f6", fontSize: 12, color: "#6b7280" }}>
           {neededHubs.size === 0
             ? "No HUBs selected"
@@ -958,9 +991,7 @@ function HubFinderPage({ courses }) {
         </div>
       </div>
 
-      {/* ── RIGHT: Results ── */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        {/* Results header */}
         <div style={{
           padding: "14px 20px", borderBottom: "1px solid #e5e7eb",
           background: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -974,7 +1005,6 @@ function HubFinderPage({ courses }) {
               }
             </div>
           </div>
-          {/* Sort toggle — only shown when there are results */}
           {results.length > 0 && (
             <div style={{ display: "flex", gap: 4 }}>
               {[["match", "Best match"], ["name", "A–Z"]].map(([mode, label]) => (
@@ -992,10 +1022,8 @@ function HubFinderPage({ courses }) {
           )}
         </div>
 
-        {/* Results list */}
         <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
           {neededHubs.size === 0 && (
-            // Empty state illustration
             <div style={{ textAlign: "center", marginTop: 60, color: "#9ca3af" }}>
               <div style={{ fontSize: 36, marginBottom: 12 }}>🎓</div>
               <div style={{ fontSize: 14, fontWeight: 600, color: "#374151", marginBottom: 4 }}>Pick your HUBs</div>
@@ -1011,14 +1039,12 @@ function HubFinderPage({ courses }) {
           )}
 
           {results.map(({ course, matched, matchCount }) => {
-            // Percentage of the user's needed HUBs covered by this one course
             const pct = Math.round((matchCount / neededHubs.size) * 100);
             return (
               <div key={course.id} style={{
                 background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10,
                 padding: "14px 16px", marginBottom: 10,
               }}>
-                {/* Course title row */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
                   <div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -1029,7 +1055,6 @@ function HubFinderPage({ courses }) {
                     </div>
                     <div style={{ fontSize: 12, color: "#374151", marginTop: 2 }}>{course.name}</div>
                   </div>
-                  {/* Match badge: shows how many needed HUBs this course covers */}
                   <div style={{
                     textAlign: "center", background: matchCount === neededHubs.size ? "#dcfce7" : "#eff6ff",
                     border: `1px solid ${matchCount === neededHubs.size ? "#86efac" : "#bfdbfe"}`,
@@ -1045,7 +1070,6 @@ function HubFinderPage({ courses }) {
                   </div>
                 </div>
 
-                {/* Progress bar showing % of selected HUBs covered */}
                 <div style={{ height: 4, background: "#f3f4f6", borderRadius: 99, marginBottom: 10, overflow: "hidden" }}>
                   <div style={{
                     height: "100%", borderRadius: 99, transition: "width 0.3s",
@@ -1054,7 +1078,6 @@ function HubFinderPage({ courses }) {
                   }} />
                 </div>
 
-                {/* HUB tags — green if matched/needed, grey if course has it but user didn't select it */}
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                   {(course.hubCodes ?? []).map((code) => {
                     const isMatch = matched.includes(code);
@@ -1066,7 +1089,6 @@ function HubFinderPage({ courses }) {
                         color: isMatch ? "#15803d" : "#9ca3af",
                         border: `1px solid ${isMatch ? "#86efac" : "#e5e7eb"}`,
                       }}>
-                        {/* Show the short code; hovering the full name would need a tooltip */}
                         {hubInfo?.label ?? code}
                       </span>
                     );
@@ -1081,18 +1103,13 @@ function HubFinderPage({ courses }) {
   );
 }
 
-// ─── Root App Component ───────────────────────────────────────────────────────
-// This is the top-level component. It owns just one piece of state — `page` —
-// which controls which page is currently visible. Everything else lives inside
-// the individual page components so their state resets cleanly when you switch.
 export default function BUScheduleBuilder() {
   const [allCourses, setAllCourses] = useState([]);
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState("schedule");   // `page` is either "schedule" or "hub" — drives which component renders below the nav
+  const [page, setPage] = useState("schedule");
   const [search, setSearch] = useState("");
 
-  // Load all courses at startup for colorMap, schedule building, HUB finder, etc.
   useEffect(() => {
     fetch("http://localhost:8080/api/courses")
       .then(res => res.json())
@@ -1103,7 +1120,6 @@ export default function BUScheduleBuilder() {
       .catch(() => setLoading(false));
   }, []);
 
-  // Debounced search — skip if search is empty (let initial load handle that)
   useEffect(() => {
     console.log("search effect fired, search:", JSON.stringify(search));
     if (search.trim().length < 2) {
@@ -1135,15 +1151,10 @@ export default function BUScheduleBuilder() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", fontFamily: "'Inter', system-ui, sans-serif", background: "#f9fafb" }}>
-      {/* NavBar sits above both pages and handles switching between them */}
       <NavBar page={page} onPageChange={setPage} />
-
-      {/* Conditionally render either the schedule builder or the HUB finder.
-          React re-mounts the component when you switch, which resets its internal state.
-          That's intentional — your HUB selections and schedule selections are independent. */}
       {page === "schedule" && (
-        <SchedulePage 
-          courses={courses} 
+        <SchedulePage
+          courses={courses}
           allCourses={allCourses}
           search={search}
           onSearchChange={setSearch}
