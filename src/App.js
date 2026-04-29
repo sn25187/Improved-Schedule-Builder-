@@ -198,7 +198,7 @@ function CourseCard({ course, selectedSections, colorMap, onToggleSection, previ
             >
               <div>
                 <span style={{ fontSize: 11, fontWeight: 600, color: isSelected ? color?.text : isDisabled ? "#9ca3af" : "#374151" }}>
-                  {sec.type} {sec.sectionId}
+                  {sec.type} {sec.sectionId}{sec.topic ? ` – ${sec.topic}` : ""}
                 </span>
                 <div style={{ fontSize: 11, color: isDisabled ? "#d1d5db" : "#6b7280", marginTop: 1 }}>
                   {(sec.meetings ?? []).map(m => `${m.days.join("/")} ${m.startTime}–${m.endTime} · ${m.room}`).join(" | ")}
@@ -300,7 +300,7 @@ function WeekGrid({ schedule, colorMap, previewSections, onAddPreviewSection, pr
                           <span style={{ fontSize: 8, color: color.border, opacity: 0.7, fontStyle: "italic" }}>× Remove</span>
                         )}
                       </div>
-                      <div style={{ fontSize: 9, color: color.text, opacity: 0.75 }}>{section.type}</div>
+                      <div style={{ fontSize: 9, color: color.text, opacity: 0.75 }}>{section.type}{section.topic ? ` – ${section.topic}` : ""}</div>
                       <div style={{ fontSize: 9, color: color.text, opacity: 0.65 }}>{meeting.startTime}–{meeting.endTime}</div>
 
                       {isSelected && (
@@ -342,6 +342,12 @@ function WeekGrid({ schedule, colorMap, previewSections, onAddPreviewSection, pr
                               <span style={{ color: "#9ca3af" }}>Instructor</span>
                               <span style={{ color: "#374151", fontWeight: 500 }}>{instructor}</span>
                             </div>
+                            {section.topic && (
+                              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
+                                <span style={{ color: "#9ca3af" }}>Topic</span>
+                                <span style={{ color: "#374151", fontWeight: 500, textAlign: "right", maxWidth: 140 }}>{section.topic}</span>
+                              </div>
+                            )}
                             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
                               <span style={{ color: "#9ca3af" }}>Credits</span>
                               <span style={{ color: "#374151", fontWeight: 500 }}>{credits}</span>
@@ -500,7 +506,7 @@ function WeekGrid({ schedule, colorMap, previewSections, onAddPreviewSection, pr
                         {isSingle ? (
                           <>
                             <div style={{ fontSize: 9, color: color.border, opacity: 0.55, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                              {rep.section.type} {rep.section.sectionId}
+                              {rep.section.type} {rep.section.sectionId}{rep.section.topic ? ` – ${rep.section.topic}` : ""}
                             </div>
                             <div style={{ fontSize: 9, color: color.border, opacity: 0.45 }}>
                               {repMeeting.startTime}–{repMeeting.endTime}
@@ -560,7 +566,7 @@ function WeekGrid({ schedule, colorMap, previewSections, onAddPreviewSection, pr
                               onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                             >
                               <div style={{ fontSize: 11, fontWeight: 600, color: "#f3f4f6" }}>
-                                {ps.section.type} {ps.section.sectionId}
+                                {ps.section.type} {ps.section.sectionId}{ps.section.topic ? ` – ${ps.section.topic}` : ""}
                               </div>
                               <div style={{ fontSize: 10, color: "#9ca3af" }}>{(ps.meeting ?? ps.section.meetings?.[0])?.room}</div>
                             </div>
